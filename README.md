@@ -98,19 +98,59 @@ pX/Name  ──PR──▶  develop  ──PR (1 approve)──▶  main
 - ขึ้นต้นด้วยเลขส่วนของตัวเอง `p1/` ถึง `p5/` แล้วตามด้วยชื่อตัวเอง เช่น `p2/Name`
 - ใช้ภาษาอังกฤษ ไม่มีเว้นวรรค
 
-### ขั้นตอน
+### เริ่มต้นสำหรับสมาชิก (ทำครั้งแรกครั้งเดียว)
+
+ตัวอย่างด้านล่างใช้ส่วนที่ 2 ให้เปลี่ยน `p2` และ `#2` เป็นเลขส่วนของตัวเอง และเปลี่ยน `Name` เป็นชื่อตัวเอง
+
+**1. รับคำเชิญเข้า repo**
+เปิด https://github.com/Peem-Atikorn/baht-counter/invitations แล้วกด **Accept invitation** (หรือกดจากอีเมลที่ GitHub ส่งมา)
+
+**2. รับงาน**
+เปิดแท็บ [Issues](https://github.com/Peem-Atikorn/baht-counter/issues) → กดเข้า issue ของส่วนตัวเอง → แถบขวาตรง **Assignees** กด **assign yourself**
+
+**3. โหลดโปรเจกต์ลงเครื่อง**
+
+```bash
+git clone https://github.com/Peem-Atikorn/baht-counter.git
+cd baht-counter
+```
+
+**4. สร้าง branch ของตัวเองจาก `develop` แล้วส่งขึ้น GitHub**
+
+```bash
+git switch develop
+git switch -c p2/Name
+git push -u origin p2/Name
+```
+
+### ทำงานประจำวัน
+
+**1. ดึงงานล่าสุดของเพื่อนมาก่อนเริ่มทำงานทุกครั้ง**
 
 ```bash
 git switch develop
 git pull
-git switch -c p2/Name
-# ... แก้โค้ด, commit ...
-git push -u origin p2/Name
+git switch p2/Name
+git merge develop
 ```
 
-จากนั้นเปิด PR เข้า `develop` บน GitHub และเขียนอ้าง issue ในคำอธิบาย PR
-- `Refs #2` สำหรับงานย่อยระหว่างทาง
-- `Closes #2` เมื่องานของส่วนนั้นเสร็จทั้งหมด
+**2. แก้โค้ดแล้ว commit + push**
+
+```bash
+git add .
+git commit -m "p2: เพิ่ม watershed แยกเหรียญที่ชิดกัน"
+git push
+```
+
+**3. เปิด PR เข้า `develop`** เมื่องานชิ้นหนึ่งเสร็จและรันได้
+- บน GitHub กด **Compare & pull request** (หรือแท็บ Pull requests → New pull request)
+- ตรวจว่า base เป็น `develop` และ compare เป็น `p2/Name`
+- ในคำอธิบาย PR เขียน `Refs #2` สำหรับงานย่อยระหว่างทาง หรือ `Closes #2` เมื่องานของส่วนนั้นเสร็จทั้งหมด
+- กด **Merge pull request** ได้เลย ไม่ต้องรอคน approve (ถ้าอยากให้เพื่อนช่วยดู ให้เพิ่มชื่อใน Reviewers)
+
+**4. ทำงานต่อบน branch เดิม** กลับไปทำข้อ 1 ใหม่
+
+> push ตรงเข้า `develop` หรือ `main` ไม่ได้ ต้องผ่าน PR เสมอ ถ้า push แล้วขึ้น `protected branch` แปลว่าลืมสลับมา branch ของตัวเอง
 
 ### ข้อตกลง
 
