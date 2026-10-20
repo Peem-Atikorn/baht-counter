@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Data (ภาพทั้งหมดไม่เก็บใน git)
+data/raw/*
+!data/raw/.gitkeep
+
+# Backend storage / DB
+storage/
+*.sqlite3
+*.db
+
+# Env / IDE
+.env
+.vscode/
+.idea/
+.DS_Store
