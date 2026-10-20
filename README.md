@@ -67,13 +67,15 @@ baht-counter/
 
 ## การแบ่งงาน
 
-| ส่วน | งาน | Issue | Prefix ของ branch |
+| ส่วน | งาน | Issue | Branch |
 |---|---|---|---|
-| 1 | ชุดข้อมูล การปรับปรุงภาพ และการตรวจคุณภาพภาพ | [#1](https://github.com/Peem-Atikorn/baht-counter/issues/1) | `p1/` |
-| 2 | หาตำแหน่งเหรียญ | [#2](https://github.com/Peem-Atikorn/baht-counter/issues/2) | `p2/` |
-| 3 | จำแนกชนิดเหรียญ หาสเกล และการประเมินผลรวม | [#3](https://github.com/Peem-Atikorn/baht-counter/issues/3) | `p3/` |
-| 4 | Backend API ฐานข้อมูล และ Deploy | [#4](https://github.com/Peem-Atikorn/baht-counter/issues/4) | `p4/` |
-| 5 | Frontend เว็บแอป | [#5](https://github.com/Peem-Atikorn/baht-counter/issues/5) | `p5/` |
+| 1 | ชุดข้อมูล การปรับปรุงภาพ และการตรวจคุณภาพภาพ | [#1](https://github.com/Peem-Atikorn/baht-counter/issues/1) | `p1/Name` |
+| 2 | หาตำแหน่งเหรียญ | [#2](https://github.com/Peem-Atikorn/baht-counter/issues/2) | `p2/Name` |
+| 3 | จำแนกชนิดเหรียญ หาสเกล และการประเมินผลรวม | [#3](https://github.com/Peem-Atikorn/baht-counter/issues/3) | `p3/Name` |
+| 4 | Backend API ฐานข้อมูล และ Deploy | [#4](https://github.com/Peem-Atikorn/baht-counter/issues/4) | `p4/Name` |
+| 5 | Frontend เว็บแอป | [#5](https://github.com/Peem-Atikorn/baht-counter/issues/5) | `p5/Name` |
+
+`Name` คือชื่อของผู้รับผิดชอบส่วนนั้น
 
 ผู้รับผิดชอบแต่ละส่วนกด Assign ตัวเองใน issue ของส่วนนั้น
 
@@ -82,29 +84,28 @@ baht-counter/
 ### Branch
 
 ```text
-pX/<ชื่องาน>  ──PR──▶  develop  ──PR (1 approve)──▶  main
+pX/Name  ──PR──▶  develop  ──PR (1 approve)──▶  main
 ```
 
 | Branch | ใช้ทำอะไร | กฎ |
 |---|---|---|
 | `main` | เวอร์ชันที่ deploy และส่งอาจารย์ | รับเฉพาะ PR จาก `develop`, ต้องมี 1 คน approve |
 | `develop` | รวมงานทุกส่วน (default branch) | ต้องเปิด PR, merge เองได้ |
-| `pX/<ชื่องาน>` | งานของส่วนที่ X | สร้างจาก `develop` |
+| `pX/Name` | งานของส่วนที่ X | สร้างจาก `develop` |
 | `docs/<ชื่องาน>` | เอกสารหรือของที่ใช้ร่วมกันทุกส่วน | สร้างจาก `develop` |
 
 **ตั้งชื่อ branch**
-- ขึ้นต้นด้วยเลขส่วนของตัวเอง `p1/` ถึง `p5/` ส่วนที่ตามหลังตั้งเองได้
-- ใช้ภาษาอังกฤษตัวเล็ก คั่นคำด้วย `-` เช่น `p1/clahe`, `p2/watershed`, `p3/scale-search`, `p4/docker`, `p5/camera`
-- 1 branch ต่อ 1 งานย่อย merge แล้วลบทิ้ง
+- ขึ้นต้นด้วยเลขส่วนของตัวเอง `p1/` ถึง `p5/` แล้วตามด้วยชื่อตัวเอง เช่น `p2/Name`
+- ใช้ภาษาอังกฤษ ไม่มีเว้นวรรค
 
 ### ขั้นตอน
 
 ```bash
 git switch develop
 git pull
-git switch -c p2/watershed
+git switch -c p2/Name
 # ... แก้โค้ด, commit ...
-git push -u origin p2/watershed
+git push -u origin p2/Name
 ```
 
 จากนั้นเปิด PR เข้า `develop` บน GitHub และเขียนอ้าง issue ในคำอธิบาย PR
