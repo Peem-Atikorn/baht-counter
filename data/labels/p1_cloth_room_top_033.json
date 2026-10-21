@@ -1,0 +1,50 @@
+{
+  "image": "p1_cloth_room_top_033.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2613.9,
+        2700.8
+      ],
+      "radius_px": 413.1,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2135.8,
+        1986.8
+      ],
+      "radius_px": 391.0,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1552.2,
+        2949.1
+      ],
+      "radius_px": 380.1,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2272.4,
+        3483.1
+      ],
+      "radius_px": 413.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1241.7,
+        3725.2
+      ],
+      "radius_px": 403.6,
+      "coin_type": "THB_1"
+    }
+  ],
+  "notes": ""
+}

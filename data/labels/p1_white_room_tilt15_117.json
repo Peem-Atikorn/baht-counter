@@ -1,0 +1,146 @@
+{
+  "image": "p1_white_room_tilt15_117.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2241.3,
+        3147.8
+      ],
+      "radius_px": 254.6,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2061.3,
+        2744.2
+      ],
+      "radius_px": 223.9,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2129.6,
+        2340.7
+      ],
+      "radius_px": 186.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2942.9,
+        2092.3
+      ],
+      "radius_px": 247.3,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        850.6,
+        3178.9
+      ],
+      "radius_px": 322.0,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        2346.9,
+        3737.6
+      ],
+      "radius_px": 371.4,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        1608.1,
+        2452.4
+      ],
+      "radius_px": 268.6,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        1508.7,
+        2918.1
+      ],
+      "radius_px": 261.1,
+      "coin_type": "THB_2"
+    },
+    {
+      "center_xy": [
+        2974.0,
+        3209.9
+      ],
+      "radius_px": 341.5,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        2651.1,
+        2626.3
+      ],
+      "radius_px": 301.7,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1608.1,
+        3520.3
+      ],
+      "radius_px": 361.2,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1614.3,
+        4377.1
+      ],
+      "radius_px": 311.2,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        968.6,
+        3837.0
+      ],
+      "radius_px": 256.0,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        3067.1,
+        3824.6
+      ],
+      "radius_px": 222.1,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        2477.3,
+        2222.7
+      ],
+      "radius_px": 151.2,
+      "coin_type": "THB_0_25"
+    },
+    {
+      "center_xy": [
+        2117.2,
+        1906.1
+      ],
+      "radius_px": 141.7,
+      "coin_type": "THB_0_25"
+    },
+    {
+      "center_xy": [
+        1061.7,
+        2260.0
+      ],
+      "radius_px": 194.5,
+      "coin_type": "THB_0_25"
+    }
+  ],
+  "notes": ""
+}

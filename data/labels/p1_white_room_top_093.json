@@ -1,0 +1,34 @@
+{
+  "image": "p1_white_room_top_093.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2390.3,
+        2564.2
+      ],
+      "radius_px": 370.3,
+      "coin_type": "THB_0_25"
+    },
+    {
+      "center_xy": [
+        2166.8,
+        3259.6
+      ],
+      "radius_px": 384.0,
+      "coin_type": "THB_0_25"
+    },
+    {
+      "center_xy": [
+        1508.7,
+        2775.3
+      ],
+      "radius_px": 405.4,
+      "coin_type": "THB_0_25"
+    }
+  ],
+  "notes": ""
+}

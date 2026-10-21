@@ -1,0 +1,18 @@
+{
+  "image": "p1_cloth_room_top_116.jpg",
+  "image_size": [
+    2880,
+    2160
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2268.0,
+        1225.6
+      ],
+      "radius_px": 221.5,
+      "coin_type": "THB_0_50"
+    }
+  ],
+  "notes": ""
+}
