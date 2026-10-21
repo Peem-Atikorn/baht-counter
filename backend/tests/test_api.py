@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from fastapi.testclient import TestClient
 
+from app import main
 from app.main import app
 
 client = TestClient(app)
@@ -76,6 +77,13 @@ def test_rejects_corrupt_image():
 def test_rejects_too_large():
     r = upload(b"0" * (15 * 1024 * 1024 + 1))
     assert r.status_code == 413
+
+
+def test_rejects_too_many_pixels(monkeypatch):
+    monkeypatch.setattr(main, "MAX_PIXELS", 800 * 600 - 1)
+    r = upload(png_bytes(800, 600))
+    assert r.status_code == 413
+    assert "ความละเอียดสูงเกินไป" in r.json()["detail"]
 
 
 def test_unknown_analysis_404():

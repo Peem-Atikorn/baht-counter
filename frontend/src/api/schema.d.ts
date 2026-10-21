@@ -167,7 +167,10 @@ export interface paths {
         };
         /**
          * Export Labels
-         * @description รวมผลที่ผู้ใช้แก้แล้วทั้งหมดเป็นไฟล์ป้ายกำกับทีละภาพ (รูปแบบตาม docs/labels.md) ใน zip เดียว
+         * @description รวมผลที่ผู้ใช้แก้แล้วทั้งหมดเป็นไฟล์ป้ายกำกับ + ภาพต้นฉบับทีละภาพ (รูปแบบตาม docs/labels.md) ใน zip เดียว
+         *
+         *     ตั้งชื่อไฟล์ด้วย analysis_id (ไม่ใช่ชื่อไฟล์ที่ผู้ใช้อัปโหลด) เพราะกล้องในหน้าเว็บส่งชื่อ `capture.jpg`
+         *     ซ้ำกันทุกภาพ ชื่อเดิมเก็บไว้ที่ `source_filename` แทน (ฟิลด์เพิ่มจาก docs/labels.md ของส่วนที่ 1)
          */
         get: operations["export_labels_api_labels_export_get"];
         put?: never;

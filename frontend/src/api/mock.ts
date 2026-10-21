@@ -2,12 +2,54 @@
 import type { AnalysisResponse, Coin, CoinTypeInfo } from './client'
 
 const COIN_TYPES: CoinTypeInfo[] = [
-  { code: 'THB_0_25', name_th: '25 สตางค์', value_baht: 0.25, diameter_mm: 16, color_group: 'copper', display_color: '#b45309' },
-  { code: 'THB_0_50', name_th: '50 สตางค์', value_baht: 0.5, diameter_mm: 18, color_group: 'copper', display_color: '#ea580c' },
-  { code: 'THB_1', name_th: '1 บาท', value_baht: 1, diameter_mm: 20, color_group: 'silver', display_color: '#64748b' },
-  { code: 'THB_2', name_th: '2 บาท', value_baht: 2, diameter_mm: 21.75, color_group: 'gold', display_color: '#ca8a04' },
-  { code: 'THB_5', name_th: '5 บาท', value_baht: 5, diameter_mm: 24, color_group: 'silver', display_color: '#2563eb' },
-  { code: 'THB_10', name_th: '10 บาท', value_baht: 10, diameter_mm: 26, color_group: 'bimetal', display_color: '#16a34a' },
+  {
+    code: 'THB_0_25',
+    name_th: '25 สตางค์',
+    value_baht: 0.25,
+    diameter_mm: 16,
+    color_group: 'copper',
+    display_color: '#b45309',
+  },
+  {
+    code: 'THB_0_50',
+    name_th: '50 สตางค์',
+    value_baht: 0.5,
+    diameter_mm: 18,
+    color_group: 'copper',
+    display_color: '#ea580c',
+  },
+  {
+    code: 'THB_1',
+    name_th: '1 บาท',
+    value_baht: 1,
+    diameter_mm: 20,
+    color_group: 'silver',
+    display_color: '#64748b',
+  },
+  {
+    code: 'THB_2',
+    name_th: '2 บาท',
+    value_baht: 2,
+    diameter_mm: 21.75,
+    color_group: 'gold',
+    display_color: '#ca8a04',
+  },
+  {
+    code: 'THB_5',
+    name_th: '5 บาท',
+    value_baht: 5,
+    diameter_mm: 24,
+    color_group: 'silver',
+    display_color: '#2563eb',
+  },
+  {
+    code: 'THB_10',
+    name_th: '10 บาท',
+    value_baht: 10,
+    diameter_mm: 26,
+    color_group: 'bimetal',
+    display_color: '#16a34a',
+  },
 ]
 
 const store = new Map<string, { response: AnalysisResponse; url: string }>()
@@ -38,7 +80,13 @@ export async function createAnalysis(image: Blob): Promise<AnalysisResponse> {
     reason: null,
   }))
   const last = coins[coins.length - 1]
-  Object.assign(last, { coin_type: null, value_baht: null, confidence: null, status: 'needs_confirmation', reason: 'ตัวอย่างจาก mock: ระบบไม่แน่ใจชนิดของเหรียญนี้' })
+  Object.assign(last, {
+    coin_type: null,
+    value_baht: null,
+    confidence: null,
+    status: 'needs_confirmation',
+    reason: 'ตัวอย่างจาก mock: ระบบไม่แน่ใจชนิดของเหรียญนี้',
+  })
 
   const id = crypto.randomUUID()
   const response: AnalysisResponse = {

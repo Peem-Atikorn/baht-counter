@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from app import pipeline
 from schemas import Coin
@@ -16,8 +17,23 @@ def test_pipeline_failure_is_reported(monkeypatch):
     monkeypatch.setenv("COIN_USE_MOCK", "preprocess,classification")  # detection จริงยังไม่เสร็จ
     result, _, timings = pipeline.run(np.zeros((100, 100, 3), np.uint8))
     assert result.status == "failed"
-    assert result.reason
+    assert "detection" in result.reason
     assert "preprocess" in timings
+
+
+def test_mock_stage_typo_is_rejected(monkeypatch):
+    monkeypatch.setenv("COIN_USE_MOCK", "preprocess,detect")
+    with pytest.raises(ValueError, match="detect"):
+        pipeline.run(np.zeros((100, 100, 3), np.uint8))
+
+
+def test_bad_anchor_is_raised(monkeypatch):
+    def bad_anchor(pre, coins, anchor):
+        raise ValueError("ไม่พบเหรียญ coin_id=99")
+
+    monkeypatch.setattr(pipeline.classification, "mock_classify_coins", bad_anchor)
+    with pytest.raises(ValueError):
+        pipeline.run(np.zeros((100, 100, 3), np.uint8), anchor=(99, "THB_1"))
 
 
 def test_reclassify_applies_anchor():

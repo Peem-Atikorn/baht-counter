@@ -40,6 +40,7 @@ pillow_heif.register_heif_opener()  # ให้ PIL เปิดไฟล์ .he
 logging.basicConfig(level=logging.INFO)
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+MAX_PIXELS = 50_000_000  # ไฟล์เล็กแต่ความละเอียดสูงมาก (เช่น PNG สีพื้น) ใช้หน่วยความจำมหาศาลตอนถอดรหัส
 EXT_BY_CONTENT_TYPE = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -64,7 +65,11 @@ def decode_image(data: bytes) -> np.ndarray:
     """อ่านไฟล์ (รวม HEIC) หมุนตาม EXIF orientation แล้วคืนภาพ BGR"""
     try:
         img = Image.open(io.BytesIO(data))
+        if img.width * img.height > MAX_PIXELS:
+            raise HTTPException(413, "ภาพมีความละเอียดสูงเกินไป กรุณาใช้ภาพไม่เกิน 50 ล้านพิกเซล")
         img = ImageOps.exif_transpose(img).convert("RGB")
+    except Image.DecompressionBombError:
+        raise HTTPException(413, "ภาพมีความละเอียดสูงเกินไป กรุณาใช้ภาพไม่เกิน 50 ล้านพิกเซล")
     except (UnidentifiedImageError, OSError):
         raise HTTPException(400, "อ่านไฟล์ภาพไม่ได้ กรุณาใช้ไฟล์ JPEG, PNG, WebP หรือ HEIC")
     return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
@@ -121,11 +126,12 @@ def coin_types():
     return COIN_TYPES
 
 
+# def ธรรมดา (ไม่ใช่ async) FastAPI จะรันใน threadpool งานประมวลผลภาพจึงไม่บล็อก request อื่น
 @app.post("/api/analyses", response_model=AnalysisResponse, status_code=201)
-async def create_analysis(file: UploadFile):
+def create_analysis(file: UploadFile):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(415, "รองรับเฉพาะไฟล์ JPEG, PNG, WebP หรือ HEIC")
-    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "ไฟล์ใหญ่เกิน 15 MB")
 
