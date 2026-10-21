@@ -1,0 +1,30 @@
+# เจ้าของโฟลเดอร์ เมื่อมี PR แก้ไฟล์ในโฟลเดอร์ไหน GitHub จะขอ review จากเจ้าของโฟลเดอร์นั้นให้อัตโนมัติ (ได้รับแจ้งเตือน)
+# ไม่ได้บังคับ approve ก่อน merge เข้า develop แค่ส่งแจ้งเตือน
+#
+# บรรทัดที่อยู่ล่างกว่าชนะ จึงต้องใส่ @Peem-Atikorn (หัวทีม) ไว้ทุกบรรทัด
+# แบ่งงานแล้ว: ลบ # หน้าบรรทัดของส่วนนั้น และเปลี่ยน @USERNAME เป็นชื่อ GitHub ของผู้รับผิดชอบ
+
+# หัวทีม: ได้แจ้งเตือนทุก PR
+*                                   @Peem-Atikorn
+
+# ส่วนที่ 1: ข้อมูลและปรับปรุงภาพ (#1)
+# /backend/modules/preprocess/      @USERNAME @Peem-Atikorn
+# /data/                            @USERNAME @Peem-Atikorn
+
+# ส่วนที่ 2: หาตำแหน่งเหรียญ (#2)
+# /backend/modules/detection/       @USERNAME @Peem-Atikorn
+
+# ส่วนที่ 3: จำแนกชนิดและประเมินผล (#3)
+# /backend/modules/classification/  @USERNAME @Peem-Atikorn
+# /eval/                            @USERNAME @Peem-Atikorn
+
+# ส่วนที่ 4: Backend และ Deploy (#4)
+# /backend/app/                     @USERNAME @Peem-Atikorn
+# /docker-compose.yml               @USERNAME @Peem-Atikorn
+# /.github/workflows/               @USERNAME @Peem-Atikorn
+
+# ส่วนที่ 5: Frontend (#5)
+# /frontend/                        @USERNAME @Peem-Atikorn
+
+# schema กลาง: ทุกส่วนใช้ร่วมกัน ใส่ชื่อทุกคนให้ได้แจ้งเตือนเมื่อมีคนแก้
+# /backend/schemas/                 @USERNAME1 @USERNAME2 @USERNAME3 @USERNAME4 @Peem-Atikorn
