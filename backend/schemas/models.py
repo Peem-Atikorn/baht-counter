@@ -6,7 +6,7 @@ from typing import Literal
 import numpy as np
 from pydantic import BaseModel
 
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.2.1"
 
 Status = Literal["ok", "needs_confirmation", "failed"]
 ColorGroup = Literal["copper", "silver", "gold", "bimetal", "unknown"]
