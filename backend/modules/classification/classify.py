@@ -1,12 +1,16 @@
 """ส่วนที่ 3: จัดกลุ่มสี + หาสเกล -> ชนิดเหรียญและยอดรวม"""
 from __future__ import annotations
 
+import cv2
+
 from schemas import Coin, CountResult, PreprocessResult
 
 from .coin_specs import COIN_SPECS, GROUP_TYPES
 from .color import color_groups
 from .mock import total_baht
 from .scale import CLOSE_TYPES_MARGIN, MAX_REL_ERR, assign_at_scale, fit_scale
+from .template import MIN_MARGIN as TEMPLATE_MIN_MARGIN
+from .template import Templates, decide, match_scores
 
 # เหรียญสีเงินขนาดระหว่าง 1 กับ 5 บาท อาจเป็น 2 บาทสีเงินรุ่นเก่า (นอกขอบเขต)
 OLD_2_BAHT_MM = (21.0, 22.8)
@@ -69,13 +73,40 @@ def summarize(pre: PreprocessResult, coins: list[Coin], scale: float | None,
     )
 
 
+def _template_anchor(pre: PreprocessResult, coins: list[Coin], candidates: list[list[str]],
+                     ambiguous: set[int], templates: Templates) -> tuple[int, str, float] | None:
+    """เหรียญที่ลวดลายบอกชนิดได้ชัดที่สุดในกลุ่มที่สเกลไม่ชัด -> (index, ชนิด, ระยะห่างคะแนน)"""
+    gray = pre.gray if pre.gray is not None else cv2.cvtColor(pre.image, cv2.COLOR_BGR2GRAY)
+    best = None
+    for i in sorted(ambiguous):
+        if len(candidates[i]) < 2:
+            continue
+        d = decide(match_scores(gray, coins[i], templates, candidates[i]))
+        if d is not None and (best is None or d[1] > best[2]):
+            best = (i, d[0], d[1])
+    return best
+
+
+def _with_template_anchor(pre: PreprocessResult, coins: list[Coin], idx: int, code: str,
+                          margin: float) -> CountResult:
+    """คำนวณใหม่โดยใช้เหรียญที่ลวดลายยืนยันแล้วเป็น anchor แต่ยังเป็นผลที่ระบบประเมินเอง (ไม่ใช่ผู้ใช้เลือก)"""
+    res = classify_coins(pre, coins, anchor=(coins[idx].coin_id, code))
+    out = list(res.coins)
+    out[idx] = out[idx].model_copy(update=dict(
+        source=coins[idx].source, confidence=round(min(1.0, margin / (2 * TEMPLATE_MIN_MARGIN)), 3)))
+    return res.model_copy(update=dict(coins=out, scale_source="inferred"))
+
+
 def classify_coins(pre: PreprocessResult, coins: list[Coin],
-                   anchor: tuple[int, str] | None = None) -> CountResult:
+                   anchor: tuple[int, str] | None = None,
+                   templates: Templates | None = None) -> CountResult:
     """จำแนกชนิดเหรียญทุกเหรียญและรวมยอดเงิน
 
     anchor = (coin_id, coin_type) ที่ผู้ใช้เลือก ใช้คำนวณสเกลจากเหรียญนั้นแทนการเดา
     เหรียญที่ source ไม่ใช่ estimated และมี coin_type แล้ว (ผู้ใช้แก้) จะคงชนิดเดิม
     และใช้เป็นข้อจำกัดตอนหาสเกล
+    templates (ไม่บังคับ, จาก build_templates) ถ้าสเกลไม่ชัดและลวดลายของเหรียญใดบอกชนิดได้ชัด
+    ใช้เหรียญนั้นเป็น anchor อัตโนมัติแทนการถามผู้ใช้
     """
     if pre.status == "failed" or pre.image is None:
         return _failed(pre, coins, pre.reason or "ประมวลผลภาพไม่สำเร็จ")
@@ -112,6 +143,10 @@ def classify_coins(pre: PreprocessResult, coins: list[Coin],
         if fit.best is None:
             return _failed(pre, coins, MSG_NO_COINS)
         best, ambiguous, need_anchor = fit.best, fit.ambiguous, fit.global_ambiguous
+        if need_anchor and templates:
+            auto = _template_anchor(pre, coins, candidates, ambiguous, templates)
+            if auto is not None:
+                return _with_template_anchor(pre, coins, *auto)
         scale = None if need_anchor else best.scale
         scale_source = None if need_anchor else "inferred"
 
