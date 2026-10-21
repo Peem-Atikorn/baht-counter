@@ -22,7 +22,8 @@ npm run dev
 
 เอาตัวแปรออกด้วย `Remove-Item Env:VITE_USE_MOCK` ก่อนเริ่ม dev server ใหม่เมื่อต้องการใช้ backend
 
-ตรวจโค้ด: `npm run build` และ `npm run lint`
+ตรวจโค้ด: `npm run build`, `npm run lint` และ `npm run format:check`
+จัดรูปแบบโค้ด: `npm run format`
 
 ## หน้าที่มี
 
@@ -32,7 +33,7 @@ npm run dev
 - `/about`: วิธีเตรียมภาพและคำอธิบายขั้นตอนระบบ
 
 มือถือใช้เมนูด้านล่าง เดสก์ท็อปใช้เมนูด้านซ้าย ภาพประกอบเป็น SVG ในโปรเจกต์
-ฟอนต์โหลดจาก Google Fonts และมี system font สำรอง
+ฟอนต์ Noto Sans Thai และ DM Sans รวมไว้ใน build ผ่าน Fontsource จึงไม่ต้องโหลดจาก Google Fonts และมี system font สำรอง
 
-โค้ดตั้งต้นนำมาจาก Frontend ใน PR #15 เท่านั้น ยังไม่รวม backend ของ PR นั้น
+ใช้โค้ดตั้งต้น Frontend จาก PR #15 และรวม develop ล่าสุดแล้ว
 การประมวลผลภาพจริง ประวัติ และ API แก้ผลยังขึ้นกับงานส่วนอื่น โหมดทดลองแสดงผลจำลอง ไม่ได้วิเคราะห์ภาพที่อัปโหลด

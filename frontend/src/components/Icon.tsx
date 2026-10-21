@@ -1,4 +1,5 @@
-type Name = 'home' | 'scan' | 'book' | 'help' | 'arrow' | 'camera' | 'upload' | 'check' | 'sun' | 'layers'
+type Name =
+  'home' | 'scan' | 'book' | 'help' | 'arrow' | 'camera' | 'upload' | 'check' | 'sun' | 'layers'
 const paths: Record<Name, string> = {
   home: 'm3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9',
   scan: 'M8 3H4a1 1 0 0 0-1 1v4m13-5h4a1 1 0 0 1 1 1v4M3 16v4a1 1 0 0 0 1 1h4m8 0h4a1 1 0 0 0 1-1v-4M8 12h8m-4-4v8',
@@ -12,5 +13,18 @@ const paths: Record<Name, string> = {
   layers: 'm12 3 10 5-10 5L2 8l10-5M2 12l10 5 10-5M2 16l10 5 10-5',
 }
 export default function Icon({ name, className = '' }: { name: Name; className?: string }) {
-  return <svg className={`icon ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>
+  return (
+    <svg
+      className={`icon ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[name]} />
+    </svg>
+  )
 }

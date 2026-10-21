@@ -20,7 +20,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new ApiError(typeof body?.detail === 'string' ? body.detail : `เกิดข้อผิดพลาด (${res.status})`)
+    throw new ApiError(
+      typeof body?.detail === 'string' ? body.detail : `เกิดข้อผิดพลาด (${res.status})`,
+    )
   }
   return res.json()
 }
