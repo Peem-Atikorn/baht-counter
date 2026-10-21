@@ -298,7 +298,7 @@ export interface components {
         CountResult: {
             /**
              * Schema Version
-             * @default 0.2.0
+             * @default 0.2.1
              */
             schema_version: string;
             /** Image Size */
