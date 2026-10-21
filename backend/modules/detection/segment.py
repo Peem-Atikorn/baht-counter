@@ -30,14 +30,29 @@ def fill_internal_holes(mask: np.ndarray) -> np.ndarray:
     return filled
 
 
-def flatten_illumination(gray: np.ndarray, sigma: float = 50.0) -> np.ndarray:
-    """ชดเชยแสงไม่สม่ำเสมอ/ขอบมืด/เงา (Illumination Gradient)
+def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.125, ksize: int = 71) -> np.ndarray:
+    """ประเมินพื้นหลังของภาพเทาด้วย Downsampled Median Filter
 
-    ประมาณความสว่างพื้นหลังด้วย Large Gaussian Filter แล้วลบออก ปรับระดับค่าให้อยู่ที่ 128
+    Median filter มีคุณสมบัติ Zero Shift บนระนาบไล่ระดับแสง (Illumination Gradient/Vignette)
+    และการย่อขนาดภาพ (Downsampling 8x) ทำให้เหรียญขนาดใหญ่ (r=90 ถึง 260px) กลายเป็นวัตถุขนาดเล็ก
+    ที่ถูก Median Filter กรองออกอย่างสมบูรณ์โดยไม่กินเนื้อเหรียญ
     """
-    bg = cv2.GaussianBlur(gray, (0, 0), sigmaX=sigma, sigmaY=sigma)
-    diff = gray.astype(np.float32) - bg.astype(np.float32) + 128.0
-    return np.clip(diff, 0, 255).astype(np.uint8)
+    h, w = gray.shape[:2]
+    small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    k = min(ksize, small.shape[0] - 1 if small.shape[0] % 2 == 1 else small.shape[0] - 2)
+    k = max(15, k if k % 2 == 1 else k + 1)
+    bg_small = cv2.medianBlur(small, k)
+    return cv2.resize(bg_small, (w, h), interpolation=cv2.INTER_CUBIC)
+
+
+def estimate_bg_illumination_bgr(bgr: np.ndarray, scale: float = 0.125, ksize: int = 71) -> np.ndarray:
+    """ประเมินภาพพื้นหลังของภาพสี (BGR) ด้วย Downsampled Median Filter"""
+    h, w = bgr.shape[:2]
+    small = cv2.resize(bgr, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    k = min(ksize, small.shape[0] - 1 if small.shape[0] % 2 == 1 else small.shape[0] - 2)
+    k = max(15, k if k % 2 == 1 else k + 1)
+    bg_small = cv2.medianBlur(small, k)
+    return cv2.resize(bg_small, (w, h), interpolation=cv2.INTER_CUBIC)
 
 
 def segment_coins_otsu(gray: np.ndarray, blur_ksize: int = 5) -> np.ndarray:
@@ -71,7 +86,8 @@ def segment_coins(
 ) -> np.ndarray:
     """แยกเหรียญโดยผสานข้อมูลทั้ง Grayscale Contrast และ Color Difference กับสีพื้นหลัง
 
-    - หากพื้นหลังมีแสงไม่สม่ำเสมอ (ไล่ระดับแสง/เงา) จะทำ Illumination Flattening ก่อน Threshold
+    - หากพื้นหลังมีแสงไม่สม่ำเสมอ (ไล่ระดับแสง/เงา/ขอบมืด) จะใช้ Downsampled Median Background Subtraction
+      ซึ่งรองรับเหรียญทุกขนาด (เล็กสุด 16px ถึง ใหญ่สุด 260px) โดยไม่มีปัญหาเหรียญใหญ่ถูกตัดขอบ
     - คำนวณความต่างสีโดยใช้ np.clip ป้องกันค่าเกิน 255 ไม่ให้วนกลับ (Overflow)
     """
     h, w = gray.shape[:2]
@@ -83,11 +99,13 @@ def segment_coins(
         gray[:, -bw:].flatten(),
     ])
 
-    # ตรวจสอบว่าพื้นหลังมีการไล่ระดับแสงมากหรือไม่ (เช่น แสงไม่สม่ำเสมอ เงา ขอบมืด)
+    # ตรวจสอบว่าพื้นหลังมีการไล่ระดับแสงมากหรือไม่
     has_uneven_light = float(np.std(border_gray)) > 10.0
     if has_uneven_light:
-        sigma = max(35.0, min(h, w) * 0.08)
-        processed_gray = flatten_illumination(gray, sigma=sigma)
+        bg_gray = estimate_bg_illumination_gray(gray)
+        processed_gray = np.clip(
+            gray.astype(np.float32) - bg_gray.astype(np.float32) + 128.0, 0, 255
+        ).astype(np.uint8)
     else:
         processed_gray = gray
 
@@ -97,8 +115,7 @@ def segment_coins(
     # 2. Color Difference กับสีพื้นหลัง (BGR Euclidean Distance)
     if len(image.shape) == 3 and image.shape[2] == 3:
         if has_uneven_light:
-            sigma = max(35.0, min(h, w) * 0.08)
-            bg_col = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma, sigmaY=sigma)
+            bg_col = estimate_bg_illumination_bgr(image)
             color_diff = np.clip(
                 np.linalg.norm(image.astype(np.float32) - bg_col.astype(np.float32), axis=2),
                 0,

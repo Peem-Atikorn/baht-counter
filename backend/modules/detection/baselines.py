@@ -93,10 +93,12 @@ def detect_coins_kmeans(
 
     # กำหนดหมายเลข Connected Components
     num_labels, comp_markers = cv2.connectedComponents(cleaned_mask)
-    # เลื่อนหมายเลข label เพื่อให้สอดคล้องกับ marker convention: background = 1, coins >= 2
     comp_markers = comp_markers + 1
 
-    return extract_coins_from_markers(comp_markers, clean_mask=cleaned_mask, min_area_px=min_area_px)
+    # ไม่ใช้ filter_relative_size เพื่อให้เป็นผลลัพธ์ของ baseline ล้วน
+    return extract_coins_from_markers(
+        comp_markers, clean_mask=cleaned_mask, min_area_px=min_area_px, filter_relative_size=False
+    )
 
 
 def detect_coins_no_watershed(
@@ -110,4 +112,7 @@ def detect_coins_no_watershed(
     num_labels, comp_markers = cv2.connectedComponents(clean_mask)
     comp_markers = comp_markers + 1
 
-    return extract_coins_from_markers(comp_markers, clean_mask=clean_mask, min_area_px=min_area_px)
+    # ไม่ใช้ filter_relative_size เพื่อให้เป็นผลลัพธ์ของ baseline ล้วน
+    return extract_coins_from_markers(
+        comp_markers, clean_mask=clean_mask, min_area_px=min_area_px, filter_relative_size=False
+    )

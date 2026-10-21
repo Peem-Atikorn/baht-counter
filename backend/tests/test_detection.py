@@ -358,3 +358,60 @@ def test_filter_size_relative_to_coins():
     assert all(c.radius_px < 100 for c in coins)
 
 
+def test_detect_large_coin_uneven_illumination():
+    """รีวิวรอบ 2 ข้อ 1: เหรียญใหญ่ r=150 และ r=220 บนพื้นที่แสงไล่ระดับ (80 ไป 160) ต้องได้รัศมีแม่นยำ (คลาดเคลื่อน < 1.5%)"""
+    from modules.preprocess import preprocess
+
+    h, w = 1200, 1600
+    grad_x = np.linspace(80, 160, w, dtype=np.float32)
+    grad_img = np.tile(grad_x, (h, 1)).astype(np.uint8)
+
+    for target_r in [150.0, 220.0]:
+        img = cv2.cvtColor(grad_img, cv2.COLOR_GRAY2BGR)
+        cv2.circle(img, (800, 600), int(target_r), (210, 210, 210), -1)
+
+        pre = preprocess(img)
+        coins = detect_coins(pre)
+
+        assert len(coins) == 1, f"ต้องตรวจพบ 1 เหรียญขนาดใหญ่ r={target_r}"
+        coin = coins[0]
+        # รัศมีคลาดเคลื่อนต้องไม่เกิน 1.5% (เกณฑ์ทีมคลาดเคลื่อนไม่เกิน 3%)
+        r_error_pct = abs(coin.radius_px - target_r) / target_r * 100.0
+        assert r_error_pct <= 1.5, f"r={target_r} แต่ตรวจได้ r={coin.radius_px:.1f} (error={r_error_pct:.2f}%)"
+        assert np.hypot(coin.center_xy[0] - 800.0, coin.center_xy[1] - 600.0) <= 2.0
+
+
+def test_detect_extreme_illumination_gradient():
+    """รีวิวรอบ 2 ข้อ 2: พื้นหลังแสงไล่แรงมาก (60 ไป 200) เหรียญฝั่งสว่าง r=90 ต้องได้ค่าแม่นยำ"""
+    from modules.preprocess import preprocess
+
+    h, w = 1200, 1600
+    grad_x = np.linspace(60, 200, w, dtype=np.float32)
+    grad_img = np.tile(grad_x, (h, 1)).astype(np.uint8)
+    img = cv2.cvtColor(grad_img, cv2.COLOR_GRAY2BGR)
+    cv2.circle(img, (1300, 600), 90, (230, 230, 230), -1)
+
+    pre = preprocess(img)
+    coins = detect_coins(pre)
+
+    assert len(coins) == 1
+    coin = coins[0]
+    assert abs(coin.radius_px - 90.0) / 90.0 <= 0.02
+    assert np.hypot(coin.center_xy[0] - 1300.0, coin.center_xy[1] - 600.0) <= 2.0
+
+
+def test_detect_coin_at_large_coin():
+    """รีวิวรอบ 2 ข้อ 4: detect_coin_at รองรับเหรียญขนาดใหญ่ r=230px เมื่อผู้ใช้กดเพิ่มเหรียญ"""
+    h, w = 1200, 1600
+    img = np.full((h, w, 3), 50, dtype=np.uint8)
+    cv2.circle(img, (600, 600), 230, (200, 200, 200), -1)
+
+    pre = make_test_pre(img)
+    clicked = detect_coin_at(pre, (610.0, 595.0))
+
+    assert clicked is not None, "เหรียญใหญ่ r=230 ต้องสามารถตรวจจับได้เมื่อคลิก"
+    assert abs(clicked.radius_px - 230.0) / 230.0 <= 0.02
+    assert np.hypot(clicked.center_xy[0] - 600.0, clicked.center_xy[1] - 600.0) <= 3.0
+
+
+

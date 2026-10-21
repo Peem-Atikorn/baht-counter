@@ -79,8 +79,8 @@ def detect_coin_at(pre: PreprocessResult, xy: tuple[float, float]) -> Coin | Non
     if not (0 <= x < w and 0 <= y < h):
         return None
 
-    # ปรับขนาด ROI ตามสัดส่วนของขนาดภาพ (เผื่อให้เหรียญขนาดใหญ่ไม่แตะขอบ ROI)
-    roi_radius = max(80, min(200, int(min(h, w) * 0.25)))
+    # ปรับขนาด ROI ตามสัดส่วนของขนาดภาพ (รองรับเหรียญขนาดใหญ่ r=230px+)
+    roi_radius = max(90, min(320, int(min(h, w) * 0.28)))
     x1, y1 = max(0, int(x - roi_radius)), max(0, int(y - roi_radius))
     x2, y2 = min(w, int(x + roi_radius)), min(h, int(y + roi_radius))
     if x2 - x1 < 30 or y2 - y1 < 30:
@@ -116,7 +116,7 @@ def detect_coin_at(pre: PreprocessResult, xy: tuple[float, float]) -> Coin | Non
 
         # 2. กรองขนาดพื้นที่
         area = float(cv2.contourArea(cnt))
-        if area < 120.0 or area > np.pi * (roi_radius * 0.95) ** 2:
+        if area < 120.0 or area > np.pi * (roi_radius * 0.98) ** 2:
             continue
 
         # 3. กรองความกลม (Circularity >= 0.60)
@@ -149,7 +149,7 @@ def detect_coin_at(pre: PreprocessResult, xy: tuple[float, float]) -> Coin | Non
             (lcx, lcy), r = cv2.minEnclosingCircle(cnt)
             ellipse = None
 
-        if r > roi_radius * 0.95:
+        if r > roi_radius * 0.98:
             continue
 
         gcx, gcy = lcx + x1, lcy + y1

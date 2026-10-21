@@ -41,6 +41,7 @@ def extract_coins_from_markers(
     min_area_px: float = 100.0,
     min_circularity: float = 0.60,
     min_aspect_ratio: float = 0.50,
+    filter_relative_size: bool = True,
 ) -> list[Coin]:
     """สกัดรายการเหรียญจากผลลัพธ์ของ Watershed markers (หรือ Connected Components)
 
@@ -48,7 +49,7 @@ def extract_coins_from_markers(
     - หา Contour ภายนอก
     - ตรวจสอบพื้นที่ (Area) และความกลม (Circularity: 4 * pi * Area / Perimeter^2)
     - Fit Ellipse: ใช้แกนยาว (Major Axis) เป็นเส้นผ่านศูนย์กลาง เพื่อชดเชยมุมกล้องเอียง
-    - กรองขนาดเปรียบเทียบกับเหรียญอื่นในภาพ (Relative size outlier rejection)
+    - กรองขนาดเปรียบเทียบกับเหรียญอื่นในภาพ (สามารถปิดได้เมื่อใช้กับอัลกอริทึม Baseline)
     """
     coins: list[Coin] = []
     h, w = markers.shape[:2]
@@ -124,8 +125,9 @@ def extract_coins_from_markers(
             )
         )
 
-    # กรองขนาดเมื่อเทียบกับเหรียญอื่นในภาพ
-    coins = filter_size_relative_to_coins(coins)
+    # กรองขนาดเมื่อเทียบกับเหรียญอื่นในภาพ (ถ้าเปิดใช้งาน)
+    if filter_relative_size:
+        coins = filter_size_relative_to_coins(coins)
 
     # จัดเรียงเหรียญจากซ้ายไปขวา (ตามแกน X) เพื่อความสม่ำเสมอ และกำหนด coin_id
     coins.sort(key=lambda c: (c.center_xy[0]))
