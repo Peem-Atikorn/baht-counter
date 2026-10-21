@@ -97,3 +97,35 @@ def test_pipeline_uses_real_preprocess_reason(monkeypatch):
     blurry, _, _ = pipeline.run(motion_blur(coin_photo(), 15))
     assert blurry.status == "failed"
     assert blurry.reason == pp.MSG_BLURRY
+
+
+@pytest.mark.parametrize("enhance, key", [("none", None), ("he", "he"), ("clahe", "clahe")])
+def test_enhance_options(enhance, key):
+    image = coin_photo()
+    result = pp.preprocess(image, enhance=enhance)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    expected = {"none": gray, "he": cv2.equalizeHist(gray), "clahe": result.debug_images.get("clahe")}[enhance]
+    assert np.array_equal(result.gray, cv2.medianBlur(expected, pp.MEDIAN_KSIZE))
+    assert set(result.debug_images) == {"gray", "enhanced"} | ({key} if key else set())
+    assert np.array_equal(result.image, image)   # ไม่ใช้ white balance สีต้องไม่เปลี่ยน
+
+
+def test_unknown_enhance_is_rejected():
+    with pytest.raises(ValueError):
+        pp.preprocess(coin_photo(), enhance="sharpen")
+
+
+def test_white_balance_removes_color_cast():
+    """แสงหลอดไส้ (อมเหลือง/ส้ม): gray world ดึงค่าเฉลี่ยแต่ละช่องสีกลับมาใกล้กัน"""
+    warm = np.clip(coin_photo().astype(np.float32) * [0.7, 0.95, 1.25], 0, 255).astype(np.uint8)
+    result = pp.preprocess(warm, white_balance=True)
+    before = warm.reshape(-1, 3).mean(axis=0)
+    after = result.image.reshape(-1, 3).mean(axis=0)
+    assert np.ptp(after) < 0.25 * np.ptp(before)
+    assert "white_balanced" in result.debug_images
+
+
+def test_white_balance_does_not_change_quality_verdict():
+    """ตรวจคุณภาพจากภาพก่อนปรับสี: ภาพมืดยังถูกปฏิเสธแม้เปิด white balance"""
+    dark = (coin_photo() * 0.25).astype(np.uint8)
+    assert pp.preprocess(dark, white_balance=True).reason == pp.MSG_TOO_DARK
