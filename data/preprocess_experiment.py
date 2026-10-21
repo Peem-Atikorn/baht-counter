@@ -132,11 +132,15 @@ def main(argv=None):
     ap.add_argument("--split", nargs="+", default=["tune"])
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "results")
     args = ap.parse_args(argv)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     if "test" in args.split:
         print("! กำลังรันบนชุด test: ใช้รายงานผลได้ แต่ห้ามใช้เลือกวิธีหรือปรับค่า", file=sys.stderr)
 
+    if not (args.data / "splits.csv").exists():
+        print(f"! ยังไม่มี {args.data / 'splits.csv'} รัน `python data/dataset.py split` ก่อน", file=sys.stderr)
+        return 1
     splits = load_splits(args.data)
     all_results, md = {}, ["# ผลทดลองการปรับปรุงภาพ (ส่วนที่ 1)", ""]
     for split in args.split:
@@ -154,7 +158,8 @@ def main(argv=None):
         json.dumps(all_results, ensure_ascii=False, indent=2), encoding="utf-8")
     (args.out / "preprocess_experiment.md").write_text("\n".join(md), encoding="utf-8")
     print(f"บันทึกผลไว้ที่ {args.out}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

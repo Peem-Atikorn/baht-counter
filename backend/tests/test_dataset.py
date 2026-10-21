@@ -101,6 +101,26 @@ def test_split_dry_run_does_not_write(tmp_path):
     assert not (tmp_path / "splits.csv").exists()
 
 
+def test_split_after_test_lock_sends_new_images_to_tune(tmp_path):
+    """หลังล็อกชุด test: --test-frac 0 ภาพใหม่ไป tune ทั้งหมด ชุด test เดิมไม่โตขึ้น"""
+    for k in range(10):
+        add_image(tmp_path, f"p1_white_room_top_{k:03d}.png")
+    dataset.main(["--data", str(tmp_path), "split"])
+    locked = {n for n, s in dataset.load_splits(tmp_path).items() if s == "test"}
+
+    for k in range(10, 20):
+        add_image(tmp_path, f"p1_white_room_top_{k:03d}.png")
+    dataset.main(["--data", str(tmp_path), "split", "--test-frac", "0"])
+    after = dataset.load_splits(tmp_path)
+    assert {n for n, s in after.items() if s == "test"} == locked
+    assert all(after[f"p1_white_room_top_{k:03d}.png"] == "tune" for k in range(10, 20))
+
+
+def test_preprocess_experiment_without_splits_exits_cleanly(tmp_path, capsys):
+    assert preprocess_experiment.main(["--data", str(tmp_path), "--out", str(tmp_path / "out")]) == 1
+    assert "dataset.py split" in capsys.readouterr().err
+
+
 def test_preprocess_experiment_runs_end_to_end(tmp_path):
     """ภาพสังเคราะห์ใหญ่พอผ่านการตรวจคุณภาพ ทุกวิธีต้องหาเหรียญเจอและจัดกลุ่มสีถูก"""
     data = tmp_path / "data"
@@ -153,3 +173,19 @@ def test_import_web_export_restores_protocol_names(tmp_path):
     # นำเข้าซ้ำไม่เขียนทับ
     imported, skipped = dataset.import_export(data, zip_path)
     assert imported == [] and len(skipped) == 3
+
+
+def test_import_does_not_write_outside_raw(tmp_path):
+    """ชื่อภาพใน zip ที่มี ../ ต้องไม่เขียนไฟล์ออกนอก data/raw"""
+    import zipfile
+
+    zip_path = tmp_path / "labels.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("labels/x.json", json.dumps({"image": "../../evil.png", "source_filename": "capture.jpg",
+                                                 "coins": []}))
+        zf.writestr("raw/evil.png", b"png")
+    data = tmp_path / "data"
+    imported, _ = dataset.import_export(data, zip_path)
+    assert imported == ["evil.png"]
+    assert (data / "raw" / "evil.png").exists()
+    assert not (tmp_path / "evil.png").exists()

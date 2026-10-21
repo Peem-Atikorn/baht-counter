@@ -8,6 +8,7 @@
 
 กติกา split
 - ภาพที่อยู่ใน splits.csv แล้ว **ไม่ถูกย้าย** (ชุดทดสอบล็อกหลังสัปดาห์ 3) เพิ่มได้แค่ภาพใหม่
+- หลังล็อกชุด test ใช้ `split --test-frac 0` ภาพใหม่ของทีมไป tune ทั้งหมด ชุด test ไม่โตขึ้น
 - ภาพชื่อ `web_*` -> web, ภาพของทีม -> tune / test
 - ภาพของทีมแบ่งตามกลุ่ม (พื้นหลัง, แสง, มุม) จากชื่อไฟล์ ให้ test ได้สัดส่วน --test-frac ในทุกกลุ่ม
   ลำดับในกลุ่มตัดสินด้วย hash ของชื่อไฟล์ จึงได้ผลเดิมทุกครั้ง
@@ -248,7 +249,7 @@ def import_export(data: Path, zip_path: Path) -> tuple[list[str], list[str]]:
     with zipfile.ZipFile(zip_path) as zf:
         for entry in sorted(n for n in zf.namelist() if n.startswith("labels/") and n.endswith(".json")):
             label = json.loads(zf.read(entry))
-            exported = label["image"]
+            exported = Path(label["image"]).name    # กันชื่อที่มี ../ เขียนออกนอก data/raw
             source = Path(label.get("source_filename") or "").name
             keep_source = source and (protocol_group(source) or is_web(source))
             name = Path(source).stem + Path(exported).suffix if keep_source else exported
@@ -274,7 +275,8 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check", help="ตรวจชุดข้อมูล")
     sp = sub.add_parser("split", help="เพิ่มภาพใหม่ลง splits.csv")
-    sp.add_argument("--test-frac", type=float, default=0.3, help="สัดส่วนภาพของทีมที่ไป test ในแต่ละกลุ่ม")
+    sp.add_argument("--test-frac", type=float, default=0.3,
+                    help="สัดส่วนภาพของทีมที่ไป test ในแต่ละกลุ่ม (0 = หลังล็อกชุด test ภาพใหม่ไป tune ทั้งหมด)")
     sp.add_argument("--dry-run", action="store_true")
     ip = sub.add_parser("import", help="นำเข้า labels.zip จากหน้าเว็บ")
     ip.add_argument("zip", type=Path)
