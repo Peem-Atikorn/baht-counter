@@ -80,7 +80,7 @@
 
 - Backend เทสต์: `cd backend && .venv/Scripts/python -m pytest` (macOS/Linux: `.venv/bin/python`)
 - Backend รัน: `.venv/Scripts/python -m uvicorn app.main:app --reload` (พอร์ต 8000)
-- Frontend: `cd frontend && npm run build` (ตรวจ type + build), `npm run dev` (พอร์ต 5173), `npx oxlint src`
+- Frontend: `cd frontend && npm run build` (ตรวจ type + build), `npm run dev` (พอร์ต 5173), `npx oxlint src`, `npm test` (ทดสอบหน้าจอและ API client), `npm run format:check` (ตรวจรูปแบบโค้ด)
 - โมดูลจริงที่ยังไม่เสร็จ `raise NotImplementedError` pipeline ใช้ `mock_*()` แทนตาม env `COIN_USE_MOCK` (ดู `backend/app/pipeline.py`)
 - แก้ schema ใน `backend/schemas/` แล้วต้องรัน `npm run gen:api` (ขณะ backend รันอยู่) และ commit `frontend/src/api/schema.d.ts` ด้วย
 - `docker compose up` ยังไม่มี (ส่วนที่ 4)

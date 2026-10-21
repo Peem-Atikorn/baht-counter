@@ -21,6 +21,8 @@ export default function Camera({ onCapture, onCancel, onUnavailable }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [facing, setFacing] = useState<'environment' | 'user'>('environment')
   const [ready, setReady] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let stream: MediaStream | undefined
@@ -47,7 +49,16 @@ export default function Camera({ onCapture, onCancel, onUnavailable }: Props) {
   }, [facing, onUnavailable])
 
   async function shoot() {
-    if (videoRef.current) onCapture(await captureFrame(videoRef.current))
+    if (!videoRef.current || capturing) return
+    setCapturing(true)
+    setError(null)
+    try {
+      onCapture(await captureFrame(videoRef.current))
+    } catch {
+      setError('ถ่ายภาพไม่สำเร็จ กรุณาลองกดชัตเตอร์อีกครั้ง')
+    } finally {
+      setCapturing(false)
+    }
   }
 
   return (
@@ -67,13 +78,18 @@ export default function Camera({ onCapture, onCancel, onUnavailable }: Props) {
           ถ่ายจากด้านบน ให้เห็นเหรียญครบทุกเหรียญ
         </p>
       </div>
+      {error && (
+        <p role="alert" className="px-6 py-2 text-center">
+          {error}
+        </p>
+      )}
       <div className="flex items-center justify-between px-6 py-5">
         <button onClick={onCancel} className="rounded-lg px-3 py-2">
           ยกเลิก
         </button>
         <button
           onClick={shoot}
-          disabled={!ready}
+          disabled={!ready || capturing}
           aria-label="ชัตเตอร์"
           className="h-16 w-16 rounded-full border-4 border-white bg-white/90 disabled:opacity-40"
         />

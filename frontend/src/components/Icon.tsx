@@ -1,5 +1,15 @@
 type Name =
-  'home' | 'scan' | 'book' | 'help' | 'arrow' | 'camera' | 'upload' | 'check' | 'sun' | 'layers'
+  | 'home'
+  | 'scan'
+  | 'book'
+  | 'help'
+  | 'arrow'
+  | 'camera'
+  | 'upload'
+  | 'check'
+  | 'sun'
+  | 'layers'
+  | 'history'
 const paths: Record<Name, string> = {
   home: 'm3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9',
   scan: 'M8 3H4a1 1 0 0 0-1 1v4m13-5h4a1 1 0 0 1 1 1v4M3 16v4a1 1 0 0 0 1 1h4m8 0h4a1 1 0 0 0 1-1v-4M8 12h8m-4-4v8',
@@ -11,6 +21,7 @@ const paths: Record<Name, string> = {
   check: 'm5 12 4 4L19 6',
   sun: 'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5m-2 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0',
   layers: 'm12 3 10 5-10 5L2 8l10-5M2 12l10 5 10-5M2 16l10 5 10-5',
+  history: 'M3 11a9 9 0 1 1 2 7M3 4v7h7m2-4v6l4 2',
 }
 export default function Icon({ name, className = '' }: { name: Name; className?: string }) {
   return (
