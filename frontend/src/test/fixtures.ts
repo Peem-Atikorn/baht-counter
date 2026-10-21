@@ -32,7 +32,7 @@ export function analysis(coins = [coin(0)]): AnalysisResponse {
   return {
     analysis_id: 'test',
     result: {
-      schema_version: '0.2.0',
+      schema_version: '0.2.1',
       image_size: [800, 600],
       coins,
       total_baht: !coins.length || needs ? null : coins.reduce((sum, c) => sum + c.value_baht!, 0),
