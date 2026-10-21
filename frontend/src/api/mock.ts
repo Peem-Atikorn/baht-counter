@@ -1,5 +1,12 @@
 // ข้อมูลจำลองที่หน้าตาเหมือน backend mock (backend/modules/*/mock_*) — ใช้ตอน VITE_USE_MOCK=1
-import type { AnalysisResponse, Coin, CoinTypeInfo } from './client'
+import type {
+  AnalysisResponse,
+  Coin,
+  CoinTypeInfo,
+  CoinCode,
+  HistoryPage,
+  ExportFormat,
+} from './client'
 
 const COIN_TYPES: CoinTypeInfo[] = [
   {
@@ -52,10 +59,13 @@ const COIN_TYPES: CoinTypeInfo[] = [
   },
 ]
 
-const store = new Map<string, { response: AnalysisResponse; url: string }>()
+const store = new Map<string, { response: AnalysisResponse; url: string; createdAt: string }>()
 
-function imageSize(blob: Blob): Promise<[number, number]> {
-  return createImageBitmap(blob).then((b) => [b.width, b.height])
+async function imageSize(blob: Blob): Promise<[number, number]> {
+  const bitmap = await createImageBitmap(blob)
+  const size: [number, number] = [bitmap.width, bitmap.height]
+  bitmap.close()
+  return size
 }
 
 export async function getCoinTypes() {
@@ -92,7 +102,7 @@ export async function createAnalysis(image: Blob): Promise<AnalysisResponse> {
   const response: AnalysisResponse = {
     analysis_id: id,
     result: {
-      schema_version: '0.1.0',
+      schema_version: '0.2.0',
       image_size: [w, h],
       coins,
       total_baht: null,
@@ -103,17 +113,129 @@ export async function createAnalysis(image: Blob): Promise<AnalysisResponse> {
       debug_images: {},
     },
   }
-  store.set(id, { response, url: URL.createObjectURL(image) })
+  store.set(id, { response, url: URL.createObjectURL(image), createdAt: new Date().toISOString() })
   await new Promise((r) => setTimeout(r, 400))
-  return response
+  return structuredClone(response)
 }
 
 export async function getAnalysis(id: string): Promise<AnalysisResponse> {
   const item = store.get(id)
-  if (!item) throw new Error('ไม่พบผลการนับนี้')
-  return item.response
+  if (!item) throw new Error('ไม่พบผลการนับนี้ ข้อมูลทดลองจะหายเมื่อรีเฟรชหน้า')
+  return structuredClone(item.response)
 }
 
 export function imageUrl(id: string): string {
   return store.get(id)?.url ?? ''
+}
+
+function commitResult(id: string, coins: Coin[]): AnalysisResponse {
+  const item = store.get(id)
+  if (!item) throw new Error('ไม่พบผลการนับนี้')
+  const missingValue = coins.some((c) => c.value_baht == null)
+  const needs = coins.some((c) => c.status === 'needs_confirmation')
+  const empty = coins.length === 0
+  const result = item.response.result
+  item.response = {
+    analysis_id: id,
+    result: {
+      ...result,
+      coins,
+      total_baht:
+        missingValue || empty
+          ? null
+          : Math.round(coins.reduce((sum, c) => sum + c.value_baht!, 0) * 100) / 100,
+      status: empty ? 'failed' : needs ? 'needs_confirmation' : 'ok',
+      reason: empty ? 'ไม่พบเหรียญในภาพ' : needs ? 'เลือกชนิดของเหรียญที่ยังระบุไม่ได้' : null,
+    },
+  }
+  return structuredClone(item.response)
+}
+
+export async function updateCoin(id: string, coinId: number, code: CoinCode) {
+  // จำลอง apply_user_coin เท่านั้น ไม่หาสเกลหรือใช้ anchor คำนวณเหรียญอื่นใหม่
+  const data = await getAnalysis(id)
+  const target = data.result.coins.find((c) => c.coin_id === coinId)
+  if (!target) throw new Error('ไม่พบเหรียญนี้')
+  const type = COIN_TYPES.find((t) => t.code === code)
+  const coins = data.result.coins.map((c) =>
+    c.coin_id === coinId
+      ? ({
+          ...c,
+          coin_type: code,
+          color_group: type?.color_group ?? c.color_group,
+          value_baht: type?.value_baht ?? null,
+          confidence: null,
+          source: 'user_edited',
+          status: 'ok',
+          reason: code === 'unknown' ? 'ไม่ใช่เหรียญไทย ลบเหรียญนี้ออกเพื่อให้รวมยอดได้' : null,
+        } as Coin)
+      : c,
+  )
+  return commitResult(id, coins)
+}
+
+export async function addCoin(id: string, xy: [number, number]) {
+  const data = await getAnalysis(id)
+  const [w, h] = data.result.image_size
+  if (xy.some((v) => !Number.isFinite(v)) || xy[0] < 0 || xy[1] < 0 || xy[0] >= w || xy[1] >= h)
+    throw new Error('ตำแหน่งต้องอยู่ในภาพ')
+  const coins = data.result.coins
+  const coin: Coin = {
+    coin_id: Math.max(-1, ...coins.map((c) => c.coin_id)) + 1,
+    center_xy: xy,
+    radius_px: Math.min(w, h) * 0.05,
+    ellipse: null,
+    color_group: 'unknown',
+    coin_type: null,
+    value_baht: null,
+    confidence: null,
+    source: 'user_added',
+    status: 'needs_confirmation',
+    reason: 'กรุณาเลือกชนิดเหรียญที่เพิ่ม',
+  }
+  return commitResult(id, [...coins, coin])
+}
+
+export async function deleteCoin(id: string, coinId: number) {
+  const data = await getAnalysis(id)
+  if (!data.result.coins.some((c) => c.coin_id === coinId)) throw new Error('ไม่พบเหรียญนี้')
+  return commitResult(
+    id,
+    data.result.coins.filter((c) => c.coin_id !== coinId),
+  )
+}
+
+export async function getHistory(limit = 20, offset = 0): Promise<HistoryPage> {
+  const items = [...store.values()].reverse().map(({ response, createdAt }) => ({
+    analysis_id: response.analysis_id,
+    created_at: createdAt,
+    status: response.result.status,
+    total_baht: response.result.total_baht,
+    coin_count: response.result.coins.length,
+  }))
+  return { items: items.slice(offset, offset + limit), total: items.length }
+}
+
+export async function exportAnalysis(id: string, format: ExportFormat): Promise<Blob> {
+  const data = await getAnalysis(id)
+  if (format === 'json')
+    return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const header =
+    'coin_id,coin_type,value_baht,color_group,source,status,center_x,center_y,radius_px'
+  const rows = data.result.coins.map((c) =>
+    [
+      c.coin_id,
+      c.coin_type ?? '',
+      c.value_baht ?? '',
+      c.color_group,
+      c.source,
+      c.status,
+      c.center_xy[0].toFixed(1),
+      c.center_xy[1].toFixed(1),
+      c.radius_px.toFixed(1),
+    ].join(','),
+  )
+  return new Blob([[header, ...rows].join('\n'), '\n'], {
+    type: 'text/csv;charset=utf-8',
+  })
 }

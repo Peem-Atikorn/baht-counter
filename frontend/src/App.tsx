@@ -1,10 +1,25 @@
-import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+  matchPath,
+} from 'react-router-dom'
 import { USE_MOCK } from './api/client'
 import Icon from './components/Icon'
 import Home from './pages/Home'
 import Capture from './pages/Capture'
 import Result from './pages/Result'
 import About from './pages/About'
+import History from './pages/History'
+
+function ResultRoute() {
+  const { id } = useParams()
+  return <Result key={id} />
+}
 
 function Workspace() {
   const { pathname } = useLocation()
@@ -15,7 +30,11 @@ function Workspace() {
         ? 'เริ่มนับเหรียญ'
         : pathname === '/about'
           ? 'รู้จักการนับเหรียญ'
-          : 'ผลการนับเหรียญ'
+          : pathname === '/history'
+            ? 'ประวัติการนับเหรียญ'
+            : matchPath('/result/:id', pathname)
+              ? 'ผลการนับเหรียญ'
+              : 'ไม่พบหน้านี้'
   return (
     <div className="workspace">
       <a className="skip-link" href="#main">
@@ -33,6 +52,10 @@ function Workspace() {
           <NavLink to="/count" aria-label="นับเหรียญ">
             <Icon name="scan" />
             <span>นับเหรียญ</span>
+          </NavLink>
+          <NavLink to="/history" aria-label="ประวัติ">
+            <Icon name="history" />
+            <span>ประวัติ</span>
           </NavLink>
           <NavLink to="/about" aria-label="วิธีใช้งาน">
             <Icon name="book" />
@@ -72,7 +95,8 @@ function Workspace() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/count" element={<Capture />} />
-            <Route path="/result/:id" element={<Result />} />
+            <Route path="/result/:id" element={<ResultRoute />} />
+            <Route path="/history" element={<History />} />
             <Route path="/about" element={<About />} />
             <Route
               path="*"

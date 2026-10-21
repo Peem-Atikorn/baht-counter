@@ -80,7 +80,7 @@
 
 - Backend เทสต์: `cd backend && .venv/Scripts/python -m pytest` (macOS/Linux: `.venv/bin/python`)
 - Backend รัน: `.venv/Scripts/python -m uvicorn app.main:app --reload` (พอร์ต 8000)
-- Frontend: `cd frontend && npm run build` (ตรวจ type + build), `npm run dev` (พอร์ต 5173), `npm run lint`, `npm test` (vitest)
+- Frontend: `cd frontend && npm run build` (ตรวจ type + build), `npm run dev` (พอร์ต 5173), `npm run lint`, `npm test` (vitest), `npm run format:check` (ตรวจรูปแบบโค้ด)
 - สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ดู `backend/app/pipeline.py`) โมดูลจริงเสร็จครบแล้ว ใช้ mock เฉพาะตอนดีบักทีละขั้น
 - แก้ schema ใน `backend/schemas/` แล้วต้องรัน `npm run gen:api` (ขณะ backend รันอยู่) และ commit `frontend/src/api/schema.d.ts` ด้วย
 - `docker compose up --build` รันทั้งระบบ (หน้าเว็บ + API) ที่ root — เปิด http://localhost:8000
