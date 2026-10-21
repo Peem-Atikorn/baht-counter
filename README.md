@@ -183,12 +183,15 @@ docker compose up --build
 ```
 
 เปิด http://localhost:8000 — หน้าเว็บและ API อยู่พอร์ตเดียวกัน ข้อมูล (SQLite + ภาพ) เก็บใน volume
-`baht_data` ไม่หายเมื่อรีสตาร์ท ค่าเริ่มต้นทุกโมดูลเป็น mock เลือกใช้โมดูลจริงเป็นรายขั้นด้วย env
-`COIN_USE_MOCK` เช่น
+`baht_data` ไม่หายเมื่อรีสตาร์ท ค่าเริ่มต้นในโค้ดยังเป็น mock ทุกขั้น ต้องตั้ง env `COIN_USE_MOCK=0` เอง
+เพื่อใช้โมดูลจริงครบทั้ง 3 ขั้น (preprocess, detection, classification เสร็จหมดแล้ว)
 
 ```bash
-COIN_USE_MOCK=detection docker compose up --build   # preprocess + classification จริง, detection ยัง mock
+COIN_USE_MOCK=0 docker compose up --build
 ```
+
+ดีบักเฉพาะขั้นเดียวด้วย mock ได้ เช่น `COIN_USE_MOCK=detection docker compose up --build` (ให้ขั้นอื่นที่ไม่ได้
+ระบุใช้ของจริง เหลือ detection เป็น mock)
 
 ### พัฒนา: รันแยก backend/frontend
 
@@ -203,9 +206,10 @@ py -3.11 -m venv .venv                 # macOS/Linux: python3.11 -m venv .venv
 
 - เอกสาร API: http://localhost:8000/docs
 - เทสต์: `.venv/Scripts/python -m pytest`
-- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (`1` = mock ทั้งหมด (ค่าเริ่มต้น), `0` = ของจริงทั้งหมด,
-  หรือระบุโมดูลที่ยังใช้ mock เช่น `COIN_USE_MOCK=detection`) ตอนนี้ `preprocess` และ `classification`
-  เป็นของจริงแล้ว เหลือ `detection` (ส่วนที่ 2) ที่ยังเป็น mock
+- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ค่าเริ่มต้นในโค้ดยังเป็น `1` = mock ทั้งหมด ต้องตั้งเองเป็น
+  `0` เพื่อใช้ของจริง) ตอนนี้โมดูลจริงครบทั้ง 3 ขั้นแล้ว (`preprocess`, `detection`, `classification`) —
+  `detection` ของจริงยังพลาดกับภาพถ่ายจริงบางแบบ (ดู issue #2) ควรเทสต์ด้วยภาพจริงเสมอ เพราะผล mock
+  ทำให้เข้าใจผิดว่าระบบพร้อมแล้ว ดีบักเฉพาะขั้นเดียวได้ด้วยชื่อขั้นคั่น comma เช่น `COIN_USE_MOCK=detection`
 
 **Frontend** (Node `^22.22.2` หรือ `^24.15.0` — `jsdom` ของ vitest ต้องการเวอร์ชันนี้ CI และ Dockerfile ใช้ 24)
 
@@ -224,9 +228,15 @@ npm run dev
 
 เว็บที่ deploy แล้ว (Render, แผน Free): **https://baht-counter.onrender.com**
 
-- deploy อัตโนมัติทุกครั้งที่ push เข้า branch `develop` (`render.yaml` ที่ root, `autoDeployTrigger: commit`)
+- ตั้งค่าแบบ Blueprint (`render.yaml` ที่ root ผูกกับ service `baht-counter` ที่สร้างไว้แล้ว) deploy
+  อัตโนมัติทุกครั้งที่ push เข้า branch `develop` (`autoDeployTrigger: commit`)
+- **แก้ env ผ่าน `render.yaml` เท่านั้น** ค่าที่ sync จากไฟล์นี้ (เช่น `COIN_USE_MOCK`) เขียนทับค่าใน
+  Environment ของ dashboard ทุกครั้งที่มี Blueprint sync ส่วนค่าที่ไม่ได้ระบุในไฟล์ (เช่น `PORT`) ยังคงค่า
+  เดิมใน dashboard ไว้ไม่ถูกลบ
 - แผน Free ไม่มี persistent disk: **ข้อมูลทั้งหมด (ผลการนับ + ภาพ) หายทุกครั้งที่ redeploy หรือ sleep แล้วตื่น**
   (ยอมรับไว้แล้วเพื่อประหยัดค่าใช้จ่าย ไม่ใช่บั๊ก) ถ้าต้องการข้อมูลถาวร ต้องอัปเกรดเป็นแผนเสียเงิน + ซื้อ disk แยก
 - service จะ sleep หลังไม่มี traffic 15 นาที เปิดครั้งแรกหลัง sleep จะช้า ~30-60 วินาที (cold start)
-- ตั้งค่า env บนเซิร์ฟเวอร์: `COIN_USE_MOCK=detection` (preprocess + classification จริง, detection ยัง mock จนส่วนที่ 2 เสร็จ)
-- **หน้าเว็บนี้ไม่มีระบบ login** ประวัติ (`/api/history`) และภาพทุกภาพเปิดดูได้โดยทุกคนที่รู้ URL — อย่าทดสอบด้วยภาพส่วนตัว
+- ตั้งค่า env บนเซิร์ฟเวอร์: `COIN_USE_MOCK=0` (โมดูลจริงครบทั้ง 3 ขั้นแล้ว — `detection` ของจริงยังพลาดกับ
+  ภาพถ่ายจริงบางแบบ ดู issue #2)
+- **หน้าเว็บนี้ไม่มีระบบ login** ประวัติ (`/api/history`) และภาพทุกภาพเปิดดูได้โดยทุกคนที่รู้ URL (ยืนยันแล้วจาก
+  รีวิว PR #23: ดึงภาพต้นฉบับได้โดยไม่ต้องมีสิทธิ์อะไร) — อย่าทดสอบด้วยภาพส่วนตัว

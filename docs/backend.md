@@ -3,6 +3,7 @@
 ## เก็บข้อมูลที่ไหน
 
 - `BAHT_DATA_DIR` (ค่าเริ่มต้น `storage/`) คือรากของข้อมูลทั้งหมด ไม่หายเมื่อรีสตาร์ท
+  (ยกเว้นบน Render แผน Free ที่ไม่มี disk ผูกไว้ ดูหัวข้อ "Env บนเซิร์ฟเวอร์ที่ deploy")
   - `{BAHT_DATA_DIR}/baht.db` — SQLite เก็บผลการนับ (`backend/app/db.py`)
   - `{BAHT_DATA_DIR}/images/{analysis_id}/` — ไฟล์ภาพต้นฉบับ + ภาพกลางทาง (`backend/app/storage.py`)
 - ภาพต้นฉบับเก็บเป็น `original<นามสกุลตามชนิดไฟล์ที่อัปโหลด>` (เช่น `.jpg`, `.heic`) ไม่แปลงเป็น PNG
@@ -68,8 +69,8 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 
 | env | ค่าที่ตั้งบน Render | ความหมาย |
 |---|---|---|
-| `COIN_USE_MOCK` | `detection` | preprocess + classification ใช้ของจริง detection ยัง mock |
-| `BAHT_DATA_DIR` | ไม่ตั้ง (ค่าเริ่มต้น `storage/` สัมพัทธ์ในคอนเทนเนอร์) | แผน Free ของ Render ไม่มี persistent disk ให้ผูก ตั้งเป็น path อื่นก็ไม่ช่วยให้ข้อมูลอยู่ข้าม redeploy |
+| `COIN_USE_MOCK` | `0` | โมดูลจริงครบทั้ง 3 ขั้นแล้ว (preprocess, detection, classification) ใช้ของจริงทั้งหมด |
+| `BAHT_DATA_DIR` | `/data` (ตั้งใน `Dockerfile` ไม่ต้องตั้งซ้ำใน dashboard) | แผน Free ของ Render ไม่มี persistent disk ผูกกับ `/data` ข้อมูลจึงยังหายเมื่อ redeploy, restart หรือ sleep แล้วตื่น แม้ path จะคงที่ |
 | `PORT` | ไม่ตั้ง (Render ตั้งให้เอง) | อ่านใน `CMD` ของ Dockerfile ผ่าน `${PORT:-8000}` |
 
 **ไม่มีระบบ login:** `GET /api/history`, `GET /api/analyses/{id}`, และภาพทุกภาพ (`/api/analyses/{id}/images/{name}`)

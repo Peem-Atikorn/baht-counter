@@ -9,6 +9,7 @@ services:
     dockerContext: .
     healthCheckPath: /api/health
     autoDeployTrigger: commit
+    # Blueprint sync เขียนทับค่า env ที่ระบุไว้นี้ในทุก sync — แก้ COIN_USE_MOCK ที่นี่เท่านั้น ไม่ใช่ใน dashboard
     envVars:
       - key: COIN_USE_MOCK
-        value: detection
+        value: "0"
