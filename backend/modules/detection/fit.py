@@ -8,6 +8,33 @@ import numpy as np
 from schemas import Coin
 
 
+def filter_size_relative_to_coins(coins: list[Coin]) -> list[Coin]:
+    """กรองเหรียญที่มีขนาดผิดปกติเมื่อเทียบกับเหรียญอื่นในภาพเดียวกัน
+
+    ตามขนาดจริงของเหรียญไทย:
+    - เหรียญเล็กสุด: 25 สตางค์ (16 มม.)
+    - เหรียญใหญ่สุด: 10 บาท (26 มม.)
+    อัตราส่วนขนาดใหญ่สุด/เล็กสุดบนระนาบเดียวกันคือ 26 / 16 = 1.625
+    เมื่อคิดมุมกล้องเอียง 30 องศา อัตราส่วนไม่ควรเกิน ~2.2 เท่าของมัธยฐาน
+    หากมีเหรียญตั้งแต่ 3 เหรียญขึ้นไป วัตถุที่รัศมีหลุดช่วง (0.45 * median ถึง 2.2 * median) จะถูกกรองออก
+    """
+    if len(coins) < 3:
+        return coins
+
+    radii = [c.radius_px for c in coins]
+    median_r = float(np.median(radii))
+    if median_r <= 0:
+        return coins
+
+    min_valid_r = 0.45 * median_r
+    max_valid_r = 2.20 * median_r
+
+    filtered = [c for c in coins if min_valid_r <= c.radius_px <= max_valid_r]
+    for idx, c in enumerate(filtered):
+        filtered[idx] = c.model_copy(update={"coin_id": idx})
+    return filtered
+
+
 def extract_coins_from_markers(
     markers: np.ndarray,
     clean_mask: np.ndarray | None = None,
@@ -21,6 +48,7 @@ def extract_coins_from_markers(
     - หา Contour ภายนอก
     - ตรวจสอบพื้นที่ (Area) และความกลม (Circularity: 4 * pi * Area / Perimeter^2)
     - Fit Ellipse: ใช้แกนยาว (Major Axis) เป็นเส้นผ่านศูนย์กลาง เพื่อชดเชยมุมกล้องเอียง
+    - กรองขนาดเปรียบเทียบกับเหรียญอื่นในภาพ (Relative size outlier rejection)
     """
     coins: list[Coin] = []
     h, w = markers.shape[:2]
@@ -87,7 +115,7 @@ def extract_coins_from_markers(
 
         coins.append(
             Coin(
-                coin_id=0,  # จะ re-index ทีหลัง
+                coin_id=0,
                 center_xy=center_xy,
                 radius_px=radius_px,
                 ellipse=ellipse_tuple,
@@ -95,6 +123,9 @@ def extract_coins_from_markers(
                 status="ok",
             )
         )
+
+    # กรองขนาดเมื่อเทียบกับเหรียญอื่นในภาพ
+    coins = filter_size_relative_to_coins(coins)
 
     # จัดเรียงเหรียญจากซ้ายไปขวา (ตามแกน X) เพื่อความสม่ำเสมอ และกำหนด coin_id
     coins.sort(key=lambda c: (c.center_xy[0]))

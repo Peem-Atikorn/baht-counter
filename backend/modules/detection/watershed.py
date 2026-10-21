@@ -51,13 +51,18 @@ def find_coin_markers(
 def apply_watershed(
     image: np.ndarray,
     mask: np.ndarray,
-    min_distance_px: float = 8.0,
+    min_distance_px: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """คำนวณ Distance Transform และรัน Watershed Segmentation แบบ Component-Guided
 
     - เหรียญเดี่ยว (Component ที่มี 1 marker): รักษาขอบเขตสมบูรณ์ ไม่ถูกรบกวนด้วยขอบเขตภายในเหรียญ (เช่น เหรียญสองสี 10 บาท)
     - เหรียญชิดกัน (Component ที่มี >= 2 markers): รัน Watershed ตัดแบ่งตามแนวรอยต่อ
+    - min_distance_px ปรับตามขนาดของภาพอัตโนมัติหากไม่ได้ระบุ
     """
+    h, w = mask.shape[:2]
+    if min_distance_px is None:
+        min_distance_px = max(5.0, min(h, w) * 0.008)
+
     dist = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
     if dist.max() < min_distance_px:
         return np.ones_like(mask, dtype=np.int32), dist

@@ -295,3 +295,66 @@ def test_detect_all_synthetic_coin_types():
         # รัศมีคลาดเคลื่อนไม่เกิน 3%
         assert abs(g.radius_px - p.radius_px) / g.radius_px <= 0.03
 
+
+def test_detect_uneven_illumination_gradient():
+    """รีวิวข้อ 1: ภาพที่มีแสงไม่สม่ำเสมอ (ไล่ระดับ 90 ไป 150) ต้องหาเหรียญเจอครบทั้ง 2 เหรียญ"""
+    from modules.preprocess import preprocess
+
+    h, w = 1200, 1600
+    grad_x = np.linspace(90, 150, w, dtype=np.float32)
+    grad_img = np.tile(grad_x, (h, 1)).astype(np.uint8)
+    img = cv2.cvtColor(grad_img, cv2.COLOR_GRAY2BGR)
+
+    c1, r1 = (400.0, 600.0), 60.0
+    c2, r2 = (1200.0, 600.0), 50.0
+    cv2.circle(img, (int(c1[0]), int(c1[1])), int(r1), (180, 180, 180), -1)
+    cv2.circle(img, (int(c2[0]), int(c2[1])), int(r2), (200, 200, 200), -1)
+
+    # ทดสอบผ่าน preprocess จริง (ตามเงื่อนไขรีวิว)
+    pre = preprocess(img)
+    coins = detect_coins(pre)
+
+    assert len(coins) == 2, f"ต้องตรวจพบ 2 เหรียญ แต่พบ {len(coins)} เหรียญ"
+    coin1 = next(c for c in coins if c.center_xy[0] < 800)
+    coin2 = next(c for c in coins if c.center_xy[0] >= 800)
+
+    assert np.hypot(coin1.center_xy[0] - c1[0], coin1.center_xy[1] - c1[1]) <= 2.0
+    assert np.hypot(coin2.center_xy[0] - c2[0], coin2.center_xy[1] - c2[1]) <= 2.0
+    assert abs(coin1.radius_px - r1) / r1 <= 0.03
+    assert abs(coin2.radius_px - r2) / r2 <= 0.03
+
+
+def test_detect_coin_at_noise_background_returns_none():
+    """รีวิวข้อ 2: กดบนพื้นหลังที่มีลาย noise (แทนโต๊ะไม้) ต้องคืน None ไม่สร้างเหรียญปลอม"""
+    rng = np.random.default_rng(42)
+    h, w = 800, 800
+    noise = rng.normal(120, 20, (h, w)).astype(np.float32)
+    blurred_noise = cv2.GaussianBlur(noise, (15, 15), 5).clip(0, 255).astype(np.uint8)
+    img = cv2.cvtColor(blurred_noise, cv2.COLOR_GRAY2BGR)
+
+    pre = make_test_pre(img)
+    clicked = detect_coin_at(pre, (400.0, 400.0))
+    assert clicked is None, "กดบนพื้นหลังลาย noise ต้องคืน None ห้ามสร้างเหรียญปลอม"
+
+
+def test_filter_size_relative_to_coins():
+    """รีวิวข้อ 6: กรองสิ่งแปลกปลอมขนาดผิดปกติเมื่อเทียบกับเหรียญอื่นในภาพ"""
+    h, w = 600, 1200
+    img = np.full((h, w, 3), 40, dtype=np.uint8)
+
+    # เหรียญจริง 3 เหรียญ (r=50, 55, 60)
+    cv2.circle(img, (200, 300), 50, (200, 200, 200), -1)
+    cv2.circle(img, (400, 300), 55, (200, 200, 200), -1)
+    cv2.circle(img, (600, 300), 60, (200, 200, 200), -1)
+
+    # วัตถุแปลกปลอมกลมขนาดมหึมา (r=180 เกิน 2.2 เท่าของมัธยฐาน)
+    cv2.circle(img, (950, 300), 180, (200, 200, 200), -1)
+
+    pre = make_test_pre(img)
+    coins = detect_coins(pre)
+
+    # วัตถุ r=180 ต้องถูกกรองออก เหลือเฉพาะเหรียญจริง 3 เหรียญ
+    assert len(coins) == 3
+    assert all(c.radius_px < 100 for c in coins)
+
+
