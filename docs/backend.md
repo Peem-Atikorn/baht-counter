@@ -73,6 +73,6 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 | `BAHT_DATA_DIR` | `/data` (ตั้งใน `Dockerfile` ไม่ต้องตั้งซ้ำใน dashboard) | แผน Free ของ Render ไม่มี persistent disk ผูกกับ `/data` ข้อมูลจึงยังหายเมื่อ redeploy, restart หรือ sleep แล้วตื่น แม้ path จะคงที่ |
 | `PORT` | ไม่ตั้ง (Render ตั้งให้เอง) | อ่านใน `CMD` ของ Dockerfile ผ่าน `${PORT:-8000}` |
 
-**ไม่มีระบบ login:** `GET /api/history`, `GET /api/analyses/{id}`, และภาพทุกภาพ (`/api/analyses/{id}/images/{name}`)
-เปิดดูได้โดยทุกคนที่รู้หรือเดา URL ได้ (`analysis_id` เป็น UUID สุ่ม เดายากแต่ไม่ได้ปิดกั้นด้วยสิทธิ์ใดๆ)
+**ไม่มีระบบ login:** `GET /api/history` แสดง `analysis_id` ของทุกรายการที่มีในระบบ ไม่ต้องเดา ใครเปิดเว็บก็
+ไล่ดูผลและภาพของทุกคนได้ผ่าน `GET /api/analyses/{id}` และภาพทุกภาพ (`/api/analyses/{id}/images/{name}`)
 **อย่าใช้ภาพส่วนตัวทดสอบบนเซิร์ฟเวอร์ที่ deploy จริง** ใช้ภาพเหรียญเปล่าๆจาก `data/samples/` พอ

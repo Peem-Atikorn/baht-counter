@@ -183,15 +183,10 @@ docker compose up --build
 ```
 
 เปิด http://localhost:8000 — หน้าเว็บและ API อยู่พอร์ตเดียวกัน ข้อมูล (SQLite + ภาพ) เก็บใน volume
-`baht_data` ไม่หายเมื่อรีสตาร์ท ค่าเริ่มต้นในโค้ดยังเป็น mock ทุกขั้น ต้องตั้ง env `COIN_USE_MOCK=0` เอง
-เพื่อใช้โมดูลจริงครบทั้ง 3 ขั้น (preprocess, detection, classification เสร็จหมดแล้ว)
+`baht_data` ไม่หายเมื่อรีสตาร์ท `docker compose up --build` ใช้โมดูลจริงเป็นค่าเริ่มต้น (ครบทั้ง 3 ขั้นแล้ว)
 
-```bash
-COIN_USE_MOCK=0 docker compose up --build
-```
-
-ดีบักเฉพาะขั้นเดียวด้วย mock ได้ เช่น `COIN_USE_MOCK=detection docker compose up --build` (ให้ขั้นอื่นที่ไม่ได้
-ระบุใช้ของจริง เหลือ detection เป็น mock)
+ดีบักด้วย mock ได้ด้วย env `COIN_USE_MOCK` เช่น `COIN_USE_MOCK=1 docker compose up --build` (mock ทุกขั้น)
+หรือ `COIN_USE_MOCK=detection docker compose up --build` (mock เฉพาะขั้นที่ระบุ ขั้นอื่นยังของจริง)
 
 ### พัฒนา: รันแยก backend/frontend
 
@@ -228,15 +223,15 @@ npm run dev
 
 เว็บที่ deploy แล้ว (Render, แผน Free): **https://baht-counter.onrender.com**
 
-- ตั้งค่าแบบ Blueprint (`render.yaml` ที่ root ผูกกับ service `baht-counter` ที่สร้างไว้แล้ว) deploy
-  อัตโนมัติทุกครั้งที่ push เข้า branch `develop` (`autoDeployTrigger: commit`)
-- **แก้ env ผ่าน `render.yaml` เท่านั้น** ค่าที่ sync จากไฟล์นี้ (เช่น `COIN_USE_MOCK`) เขียนทับค่าใน
-  Environment ของ dashboard ทุกครั้งที่มี Blueprint sync ส่วนค่าที่ไม่ได้ระบุในไฟล์ (เช่น `PORT`) ยังคงค่า
-  เดิมใน dashboard ไว้ไม่ถูกลบ
+- `render.yaml` ที่ root คือ config ของ Blueprint — จะผูกกับ service `baht-counter` ที่สร้างไว้แล้วหลัง merge
+  PR #23 (Blueprint อ่านไฟล์นี้จาก branch `develop` ซึ่งยังไม่มีไฟล์นี้จนกว่าจะ merge)
+- **แก้ env ผ่าน `render.yaml` เท่านั้นหลังผูก Blueprint แล้ว** ค่าที่ sync จากไฟล์นี้ (เช่น `COIN_USE_MOCK`)
+  จะเขียนทับค่าใน Environment ของ dashboard ทุกครั้งที่มี Blueprint sync ส่วนค่าที่ไม่ได้ระบุในไฟล์ (เช่น
+  `PORT`) ยังคงค่าเดิมใน dashboard ไว้ไม่ถูกลบ
 - แผน Free ไม่มี persistent disk: **ข้อมูลทั้งหมด (ผลการนับ + ภาพ) หายทุกครั้งที่ redeploy หรือ sleep แล้วตื่น**
   (ยอมรับไว้แล้วเพื่อประหยัดค่าใช้จ่าย ไม่ใช่บั๊ก) ถ้าต้องการข้อมูลถาวร ต้องอัปเกรดเป็นแผนเสียเงิน + ซื้อ disk แยก
 - service จะ sleep หลังไม่มี traffic 15 นาที เปิดครั้งแรกหลัง sleep จะช้า ~30-60 วินาที (cold start)
 - ตั้งค่า env บนเซิร์ฟเวอร์: `COIN_USE_MOCK=0` (โมดูลจริงครบทั้ง 3 ขั้นแล้ว — `detection` ของจริงยังพลาดกับ
   ภาพถ่ายจริงบางแบบ ดู issue #2)
-- **หน้าเว็บนี้ไม่มีระบบ login** ประวัติ (`/api/history`) และภาพทุกภาพเปิดดูได้โดยทุกคนที่รู้ URL (ยืนยันแล้วจาก
-  รีวิว PR #23: ดึงภาพต้นฉบับได้โดยไม่ต้องมีสิทธิ์อะไร) — อย่าทดสอบด้วยภาพส่วนตัว
+- **หน้าเว็บนี้ไม่มีระบบ login** `/api/history` แสดง `analysis_id` ของทุกรายการ ใครเปิดเว็บก็ไล่ดูผลและภาพ
+  ของทุกคนได้ — อย่าทดสอบด้วยภาพส่วนตัว

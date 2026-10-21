@@ -24,8 +24,7 @@ ENV FRONTEND_DIST=/app/frontend_dist
 VOLUME ["/data"]
 EXPOSE 8000
 
-# Railway/Render ส่งพอร์ตมาทาง $PORT (Hugging Face Spaces ใช้ 7860 เป็นค่าเริ่มต้น) docker compose
-# ไม่ตั้ง PORT จึงยังได้ 8000 เหมือนเดิม
+# Render/Railway ส่งพอร์ตมาทาง $PORT ถ้าไม่ตั้ง (docker compose) ใช้ 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD python -c "import os,urllib.request as u; u.urlopen('http://localhost:' + os.environ.get('PORT','8000') + '/api/health', timeout=2)" || exit 1
 

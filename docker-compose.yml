@@ -6,7 +6,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - COIN_USE_MOCK=${COIN_USE_MOCK:-1}
+      - COIN_USE_MOCK=${COIN_USE_MOCK:-0}
     volumes:
       - baht_data:/data
 

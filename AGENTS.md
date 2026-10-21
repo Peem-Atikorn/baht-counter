@@ -81,7 +81,7 @@
 - Backend เทสต์: `cd backend && .venv/Scripts/python -m pytest` (macOS/Linux: `.venv/bin/python`)
 - Backend รัน: `.venv/Scripts/python -m uvicorn app.main:app --reload` (พอร์ต 8000)
 - Frontend: `cd frontend && npm run build` (ตรวจ type + build), `npm run dev` (พอร์ต 5173), `npm run lint`, `npm test` (vitest)
-- โมดูลจริงที่ยังไม่เสร็จ `raise NotImplementedError` pipeline ใช้ `mock_*()` แทนตาม env `COIN_USE_MOCK` (ดู `backend/app/pipeline.py`)
+- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ดู `backend/app/pipeline.py`) โมดูลจริงเสร็จครบแล้ว ใช้ mock เฉพาะตอนดีบักทีละขั้น
 - แก้ schema ใน `backend/schemas/` แล้วต้องรัน `npm run gen:api` (ขณะ backend รันอยู่) และ commit `frontend/src/api/schema.d.ts` ด้วย
 - `docker compose up --build` รันทั้งระบบ (หน้าเว็บ + API) ที่ root — เปิด http://localhost:8000
 - หลัง `git pull`/`merge` ที่แก้ `backend/requirements.txt` ต้องรัน `pip install -r requirements.txt` ใหม่ใน venv ของ `backend/` (เพิ่ม `pillow-heif` รองรับ HEIC)
