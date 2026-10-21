@@ -1,0 +1,95 @@
+{
+  "image": "synth_white_room_top_003.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        1651.5,
+        3005.0
+      ],
+      "radius_px": 428.1,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        2651.1,
+        2843.6
+      ],
+      "radius_px": 412.8,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1924.7,
+        2297.2
+      ],
+      "radius_px": 368.6,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        3208.1,
+        710.0
+      ],
+      "radius_px": 345.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 167.9,
+        "gain": 1.15
+      }
+    },
+    {
+      "center_xy": [
+        3363.4,
+        2297.0
+      ],
+      "radius_px": 345.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 60.8,
+        "gain": 1.108
+      }
+    },
+    {
+      "center_xy": [
+        2105.0,
+        4461.0
+      ],
+      "radius_px": 345.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 298.2,
+        "gain": 1.078
+      }
+    },
+    {
+      "center_xy": [
+        570.7,
+        3870.1
+      ],
+      "radius_px": 345.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 119.6,
+        "gain": 1.09
+      }
+    }
+  ],
+  "notes": "ภาพสังเคราะห์จาก p1_white_room_top_101.jpg วาง THB_2 เพิ่ม 4 เหรียญ (data/synth_coins.py)",
+  "synthetic": {
+    "base": "p1_white_room_top_101.jpg",
+    "coin": "THB_2",
+    "seed": 0
+  }
+}

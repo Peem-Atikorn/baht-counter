@@ -10,7 +10,8 @@
 - ภาพที่อยู่ใน splits.csv แล้ว **ไม่ถูกย้าย** (ชุดทดสอบล็อกหลังสัปดาห์ 3) เพิ่มได้แค่ภาพใหม่
 - หลังล็อกชุด test ใช้ `split --test-frac 0` ภาพใหม่ของทีมไป tune ทั้งหมด ชุด test ไม่โตขึ้น
   (ภาพใหม่ที่ฉากเดียวกับภาพใน test ไม่ถูกเพิ่มเลย ไม่งั้นฉากเดียวกันจะอยู่ทั้ง tune และ test)
-- ภาพชื่อ `web_*` -> web, ภาพของทีม -> tune / test
+- ภาพชื่อ `web_*` -> web, ภาพสังเคราะห์ `synth_*` (data/synth_coins.py) -> synth, ภาพของทีม -> tune / test
+  ภาพสังเคราะห์ไม่นับรวมในเป้าจำนวนเหรียญและไม่เข้า test เพราะเป็นเหรียญจริงชุดเดิมที่วางซ้ำ
 - ภาพของทีมแบ่งตามกลุ่ม (พื้นหลัง, แสง, มุม) จากชื่อไฟล์ ให้ test ได้สัดส่วน --test-frac ในทุกกลุ่ม
   ลำดับในกลุ่มตัดสินด้วย hash ของชื่อไฟล์ จึงได้ผลเดิมทุกครั้ง
 - ภาพที่ถ่ายห่างกันไม่เกิน SCENE_GAP_S วินาที (เวลาใน EXIF) เป็นฉากเดียวกัน อยู่ split เดียวกันเสมอ
@@ -38,7 +39,7 @@ from schemas import COIN_TYPES  # noqa: E402
 
 CODES = [t.code for t in COIN_TYPES]
 LABEL_CODES = set(CODES) | {"unknown"}
-SPLITS = ("tune", "test", "web")
+SPLITS = ("tune", "test", "web", "synth")
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 # เป้าตาม docs/plan.md ส่วนที่ 1
@@ -66,6 +67,14 @@ class Report:
 
 def is_web(name: str) -> bool:
     return name.startswith("web_")
+
+
+def is_synth(name: str) -> bool:
+    return name.startswith("synth_")
+
+
+def is_team(name: str) -> bool:
+    return not is_web(name) and not is_synth(name)
 
 
 def protocol_group(name: str) -> tuple[str, str, str] | None:
@@ -179,15 +188,18 @@ def check(data: Path) -> Report:
             rep.errors.append(f"splits.csv: {image} ยังไม่มีป้ายกำกับ")
         if is_web(image) and split != "web":
             rep.errors.append(f"splits.csv: {image} เป็นภาพจากเว็บ ต้องอยู่ใน split web")
-    scene = scene_ids({n: p for n, p in images.items() if not is_web(n)})
+        if is_synth(image) != (split == "synth"):
+            rep.errors.append(f"splits.csv: {image} split synth ใช้ได้กับภาพ synth_* เท่านั้น และภาพ synth_* ต้องอยู่ใน synth")
+    scene = scene_ids({n: p for n, p in images.items() if is_team(n)})
     rep.errors += [f"splits.csv: {c}" for c in scene_conflicts(splits, scene)]
     unsplit = sorted(set(types_by_image) - set(splits))
     if unsplit:
         rep.warnings.append(f"มี {len(unsplit)} ภาพที่มีป้ายกำกับแต่ยังไม่อยู่ใน splits.csv (รัน `python data/dataset.py split`)")
 
     # ชื่อไฟล์ตามโปรโตคอล
-    team = [n for n in images if not is_web(n)]
+    team = [n for n in images if is_team(n)]
     web = [n for n in images if is_web(n)]
+    synth = [n for n in images if is_synth(n)]
     bad_names = [n for n in team if protocol_group(n) is None]
     for n in bad_names:
         rep.warnings.append(f"{n}: ชื่อไม่ตรงรูปแบบ <ผู้ถ่าย>_<พื้นหลัง>_<แสง>_<มุม>_<ลำดับ> (ภาพเว็บขึ้นต้นด้วย web_)")
@@ -195,8 +207,8 @@ def check(data: Path) -> Report:
     if web and not (data / "web_sources.csv").exists():
         rep.warnings.append("มีภาพจากเว็บแต่ไม่มี data/web_sources.csv บันทึกแหล่งที่มา")
 
-    # สรุปจำนวน
-    per_type = Counter(t for ts in types_by_image.values() for t in ts)
+    # สรุปจำนวน (รวม = ภาพจริงเท่านั้น ภาพสังเคราะห์แสดงในคอลัมน์ synth แยก)
+    per_type = Counter(t for n, ts in types_by_image.items() if not is_synth(n) for t in ts)
     per_split: dict[str, Counter] = defaultdict(Counter)
     for name, ts in types_by_image.items():
         per_split[splits.get(name, "(ยังไม่จัด)")].update(ts)
@@ -204,14 +216,14 @@ def check(data: Path) -> Report:
 
     lines = rep.lines
     lines += [f"ภาพของทีม {len(team)} / {TARGET_TEAM_IMAGES} · ภาพจากเว็บ {len(web)} / {TARGET_WEB_IMAGES} "
-              f"· มีป้ายกำกับ {len(types_by_image)} ภาพ", ""]
+              f"· มีป้ายกำกับ {len(types_by_image)} ภาพ" + (f" · ภาพสังเคราะห์ {len(synth)}" if synth else ""), ""]
     lines += ["| ชนิด | รวม | " + " | ".join(cols) + " |", "|---|---|" + "---|" * len(cols)]
     for code in [*CODES, "unknown"]:
         if code == "unknown" and not per_type[code]:
             continue
         mark = "" if code == "unknown" or per_type[code] >= MIN_COINS_PER_TYPE else " ⚠"
         lines.append(f"| {code} | {per_type[code]}{mark} | " + " | ".join(str(per_split[s][code]) for s in cols) + " |")
-    lines += ["", f"⚠ = ต่ำกว่าเป้า {MIN_COINS_PER_TYPE} เหรียญต่อชนิด", ""]
+    lines += ["", f"⚠ = ภาพจริงต่ำกว่าเป้า {MIN_COINS_PER_TYPE} เหรียญต่อชนิด (ไม่นับ synth)", ""]
     for i, (what, need) in enumerate([("พื้นหลัง", MIN_BACKGROUNDS), ("แสง", MIN_LIGHTS), ("มุม", 2)]):
         seen = Counter(g[i] for g in groups)
         ok = "" if len(seen) >= need else f" ⚠ ต้องมีอย่างน้อย {need} แบบ"
@@ -271,7 +283,7 @@ def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[st
     labelled = sorted(n for n in images if label_path(data, n).exists())
     splits = load_splits(data)
     new = [n for n in labelled if n not in splits]
-    scene = scene_ids({n: p for n, p in images.items() if not is_web(n)})
+    scene = scene_ids({n: p for n, p in images.items() if is_team(n)})
     if conflicts := scene_conflicts(splits, scene):
         raise SplitConflict("\n".join(conflicts))
 
@@ -281,6 +293,8 @@ def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[st
     for n in new:
         if is_web(n):
             added[n] = "web"
+        elif is_synth(n):
+            added[n] = "synth"
         else:
             by_group[protocol_group(n)].append(n)    # ชื่อไม่ตรงรูปแบบรวมอยู่กลุ่ม None
 
@@ -288,7 +302,7 @@ def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[st
         return next((s for n, s in {**splits, **added}.items() if scene.get(n) == sid), None)
 
     for group, names in by_group.items():
-        existing = [s for n, s in splits.items() if not is_web(n) and protocol_group(n) == group]
+        existing = [s for n, s in splits.items() if is_team(n) and protocol_group(n) == group]
         n_test = max(0, round(test_frac * (len(existing) + len(names))) - existing.count("test"))
         units: dict[str, list[str]] = defaultdict(list)
         for n in names:
