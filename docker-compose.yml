@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - COIN_USE_MOCK=${COIN_USE_MOCK:-1}
+    volumes:
+      - baht_data:/data
+
+volumes:
+  baht_data:
