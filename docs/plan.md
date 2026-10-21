@@ -129,7 +129,7 @@ flowchart LR
 | ประมวลผลภาพ | OpenCV, NumPy, scikit-image | |
 | CNN (ส่วนเปรียบเทียบ) | PyTorch, โมเดลเล็กเช่น MobileNetV3 | |
 | ฐานข้อมูล | SQLite | งานเล็ก ไม่ต้องใช้ฐานข้อมูลใหญ่ |
-| Deploy | Docker Compose บนเซิร์ฟเวอร์ที่มี HTTPS (เช่น Render, Railway, Hugging Face Spaces) | |
+| Deploy | Render free tier: Web Service เดียวจาก `Dockerfile` (backend เสิร์ฟ frontend ที่ build แล้วด้วย) https://baht-counter.onrender.com; ในเครื่องใช้ Docker Compose | ฟรี มี HTTPS อัตโนมัติ ไม่ต้องใส่บัตร URL เดียวไม่ต้องตั้ง CORS (ข้อจำกัดดูหัวข้อ 7) |
 
 ประมวลผลภาพเดียวควรเสร็จใน 1–2 วินาที จึงตอบกลับทันทีได้ ไม่ต้องทำ background job หรือ polling
 
@@ -303,7 +303,7 @@ def classify_coins(pre: PreprocessResult, coins: list[Coin],
 - [ ] บันทึก log: เวลาแต่ละขั้น, จำนวนครั้งที่ผู้ใช้แก้ผล (ใช้เป็นตัวชี้วัดในรายงาน)
 - [ ] Export ป้ายกำกับจากผลที่ผู้ใช้แก้แล้ว เพื่อใช้หน้าเว็บเป็นเครื่องมือทำป้ายกำกับ
 - [ ] Dockerfile และ `docker-compose.yml`
-- [ ] Deploy ขึ้นเซิร์ฟเวอร์ที่มี HTTPS ภายในสัปดาห์ 3
+- [x] Deploy ขึ้น Render free tier (มี HTTPS): Web Service เดียวจาก `Dockerfile` ที่ root, region Singapore, deploy อัตโนมัติเมื่อมี commit เข้า `develop`, env `PORT=8000` และ `COIN_USE_MOCK` (ใส่ชื่อขั้นที่ยังเป็น mock คั่นด้วย comma หรือ `0` เมื่อโมดูลจริงเสร็จครบ), health check `/api/coin-types`
 
 **API ที่ต้องมี**
 
@@ -392,6 +392,7 @@ def classify_coins(pre: PreprocessResult, coins: list[Coin],
 | ภาพเว็บมีเหรียญชนิดเดียว สเกลไม่ชัด | `needs_confirmation` + anchor จากผู้ใช้ | 3, 5 |
 | เหรียญ 2 บาทสีเงินรุ่นเก่า | อยู่นอกขอบเขต, ระบบแจ้งเตือนเมื่อเจอเหรียญเงินขนาดอยู่ระหว่าง 1 กับ 5 บาท | 3 |
 | กล้องในหน้าเว็บเปิดไม่ได้บนมือถือ (ไม่มี HTTPS, ผู้ใช้ไม่อนุญาต, Safari บน iPhone) | deploy HTTPS สัปดาห์ 3, ทางสำรอง `<input capture>`, ทดสอบบน iPhone และ Android จริงในสัปดาห์ 3 | 4, 5 |
+| ข้อจำกัด Render free tier: หลับเมื่อว่าง 15 นาที (เปิดครั้งแรกรอ ~1 นาที), RAM 512MB, ไม่มีดิสก์ถาวร (SQLite และ `storage/` หายเมื่อ deploy ใหม่หรือ restart) | ปลุกเซิร์ฟเวอร์ก่อน demo, ทดสอบภาพ 1600 px ว่าไม่เกิน RAM, export ป้ายกำกับก่อน deploy ใหม่, ถ้าไม่พอค่อยย้ายไป Hugging Face Spaces หรือ VM | 4 |
 | เหรียญเล็กเสียรายละเอียดเพราะภาพถูกบีบอัด | ส่งภาพความละเอียดเต็ม ให้ backend ย่อเอง | 4, 5 |
 | เวลาไปหมดกับความสวยของหน้าเว็บ | ทำให้ใช้งานได้ก่อน ตกแต่งเฉพาะสัปดาห์ 4 | 5 |
 

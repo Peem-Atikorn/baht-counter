@@ -39,7 +39,7 @@ flowchart LR
 | Backend | Python 3.11 + FastAPI + Pydantic |
 | ประมวลผลภาพ | OpenCV, NumPy, scikit-image (CNN เปรียบเทียบด้วย PyTorch) |
 | ฐานข้อมูล | SQLite |
-| Deploy | Docker Compose บนเซิร์ฟเวอร์ที่มี HTTPS |
+| Deploy | Render free tier: Web Service เดียวจาก `Dockerfile` (backend เสิร์ฟหน้าเว็บด้วย) https://baht-counter.onrender.com / ในเครื่องใช้ Docker Compose |
 
 ## โครงสร้างโปรเจกต์
 
