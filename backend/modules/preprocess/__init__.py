@@ -1,6 +1,7 @@
 """ส่วนที่ 1: ปรับปรุงภาพและตรวจคุณภาพภาพ
 
     preprocess(image) -> PreprocessResult       # ย่อภาพ + ภาพเทาที่ปรับแล้ว + ตรวจคุณภาพ
+    preprocess(image, enhance="he", white_balance=True)   # ตัวเลือกสำหรับการทดลอง (data/preprocess_experiment.py)
     image_quality(gray) -> ImageQuality         # ค่าที่ใช้ตัดสินคุณภาพ (ใช้ปรับเกณฑ์ด้วยชุด tune)
     mock_preprocess(image) -> PreprocessResult
 
@@ -41,6 +42,9 @@ SHARPNESS_MIN = 100
 CLAHE_CLIP_LIMIT = 2.0
 CLAHE_TILE_GRID = (8, 8)
 MEDIAN_KSIZE = 5
+
+# วิธีเพิ่มความต่างของภาพเทาก่อน median filter: none = ไม่ปรับ, he = Histogram Equalization ทั้งภาพ, clahe = ปรับทีละบริเวณ
+ENHANCE_METHODS = ("none", "he", "clahe")
 
 MSG_TOO_SMALL = "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย {n} พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง"
 MSG_TOO_DARK = "ภาพมืดเกินไป กรุณาเปิดไฟหรือถ่ายในที่สว่างขึ้น"
@@ -100,21 +104,49 @@ def _resize(image: np.ndarray) -> tuple[np.ndarray, float]:
     return image, factor
 
 
-def preprocess(image: np.ndarray) -> PreprocessResult:
+def gray_world(image: np.ndarray) -> np.ndarray:
+    """White balance แบบ gray world: ปรับแต่ละช่องสีให้ค่าเฉลี่ยเท่ากัน (สมมติว่าทั้งภาพโดยเฉลี่ยเป็นสีเทา)
+
+    ข้อจำกัด: พื้นหลังที่มีสีเด่น (โต๊ะไม้, ผ้าสี) ดึงค่าเฉลี่ยเพี้ยน จึงต้องทดลองก่อนว่าช่วยจัดกลุ่มสีจริงไหม
+    """
+    means = image.reshape(-1, 3).mean(axis=0)
+    gains = means.mean() / np.maximum(means, 1e-6)
+    return np.clip(image.astype(np.float32) * gains, 0, 255).astype(np.uint8)
+
+
+def preprocess(image: np.ndarray, enhance: str = "clahe", white_balance: bool = False) -> PreprocessResult:
     """รับภาพ BGR ที่หมุนตาม EXIF แล้ว (app ทำตอนอ่านไฟล์)
 
-    - `image`: ภาพสีหลังย่อ **ไม่ปรับสี** เพราะส่วนที่ 3 วัดสี HSV จากภาพนี้
+    - `image`: ภาพสีหลังย่อ **ไม่ปรับสี** เพราะส่วนที่ 3 วัดสี HSV จากภาพนี้ (ยกเว้น white_balance=True)
     - `gray`: ภาพเทาหลัง CLAHE (เพิ่มความต่างระหว่างเหรียญกับพื้น) และ median filter (ลดจุดรบกวนและลายพื้นโต๊ะ)
     - ภาพที่ใช้ไม่ได้ได้ `status="failed"` พร้อม `reason` ภาษาไทย แต่ยังคืนภาพไว้ให้หน้า "เกี่ยวกับ" แสดงได้
+    - `enhance` / `white_balance` ใช้เปรียบเทียบในการทดลอง ค่าเริ่มต้นคือวิธีที่ระบบใช้จริง
     """
+    if enhance not in ENHANCE_METHODS:
+        raise ValueError(f"enhance ต้องเป็นหนึ่งใน {ENHANCE_METHODS}: {enhance}")
     h, w = image.shape[:2]
     resized, factor = _resize(image)
     gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-
-    clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP_LIMIT, tileGridSize=CLAHE_TILE_GRID).apply(gray)
-    enhanced = cv2.medianBlur(clahe, MEDIAN_KSIZE)
-
+    # ตรวจคุณภาพจากภาพก่อนปรับสีและความต่าง เพื่อให้เห็นแสงจริงของภาพ
     problem = quality_problem(image_quality(gray))
+
+    debug_images = {"gray": gray}
+    if white_balance:
+        resized = gray_world(resized)
+        gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+        debug_images["white_balanced"] = resized
+
+    if enhance == "clahe":
+        contrast = cv2.createCLAHE(clipLimit=CLAHE_CLIP_LIMIT, tileGridSize=CLAHE_TILE_GRID).apply(gray)
+        debug_images["clahe"] = contrast
+    elif enhance == "he":
+        contrast = cv2.equalizeHist(gray)
+        debug_images["he"] = contrast
+    else:
+        contrast = gray
+    enhanced = cv2.medianBlur(contrast, MEDIAN_KSIZE)
+    debug_images["enhanced"] = enhanced
+
     return PreprocessResult(
         image=resized,
         gray=enhanced,
@@ -122,7 +154,7 @@ def preprocess(image: np.ndarray) -> PreprocessResult:
         original_size=(w, h),
         status="failed" if problem else "ok",
         reason=problem,
-        debug_images={"gray": gray, "clahe": clahe, "enhanced": enhanced},
+        debug_images=debug_images,
     )
 
 
