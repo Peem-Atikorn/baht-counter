@@ -216,7 +216,8 @@ def check(data: Path) -> Report:
 
     lines = rep.lines
     lines += [f"ภาพของทีม {len(team)} / {TARGET_TEAM_IMAGES} · ภาพจากเว็บ {len(web)} / {TARGET_WEB_IMAGES} "
-              f"· มีป้ายกำกับ {len(types_by_image)} ภาพ" + (f" · ภาพสังเคราะห์ {len(synth)}" if synth else ""), ""]
+              f"· มีป้ายกำกับ (ภาพจริง) {sum(not is_synth(n) for n in types_by_image)} ภาพ"
+              + (f" · ภาพสังเคราะห์ {len(synth)}" if synth else ""), ""]
     lines += ["| ชนิด | รวม | " + " | ".join(cols) + " |", "|---|---|" + "---|" * len(cols)]
     for code in [*CODES, "unknown"]:
         if code == "unknown" and not per_type[code]:

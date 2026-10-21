@@ -1,80 +1,110 @@
 {
   "image": "synth_white_room_top_011.jpg",
   "image_size": [
-    2880,
-    2160
+    4284,
+    5712
   ],
   "coins": [
     {
       "center_xy": [
-        1312.4,
-        1136.3
+        2334.5,
+        2061.3
       ],
-      "radius_px": 218.0,
-      "coin_type": "THB_10"
-    },
-    {
-      "center_xy": [
-        1847.7,
-        1319.5
-      ],
-      "radius_px": 168.1,
+      "radius_px": 392.1,
       "coin_type": "THB_1"
     },
     {
       "center_xy": [
-        1918.2,
-        941.5
+        1452.8,
+        2409.0
       ],
-      "radius_px": 158.1,
+      "radius_px": 402.4,
       "coin_type": "THB_1"
     },
     {
       "center_xy": [
-        1297.2,
-        611.2
+        2247.5,
+        2942.9
       ],
-      "radius_px": 182.8,
-      "coin_type": "THB_2",
-      "synthetic": {
-        "source": "p1_white_room_top_055.jpg",
-        "source_coin": 0,
-        "angle_deg": 128.5,
-        "gain": 0.802
-      }
+      "radius_px": 384.4,
+      "coin_type": "THB_1"
     },
     {
       "center_xy": [
-        652.2,
-        1384.2
+        2812.5,
+        3520.3
       ],
-      "radius_px": 182.8,
+      "radius_px": 398.6,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1514.9,
+        3371.3
+      ],
+      "radius_px": 391.5,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        955.9,
+        1094.1
+      ],
+      "radius_px": 426.4,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_056.jpg",
         "source_coin": 0,
-        "angle_deg": 136.5,
-        "gain": 1.246
+        "angle_deg": 70.0,
+        "gain": 1.138
       }
     },
     {
       "center_xy": [
-        1749.2,
-        375.7
+        780.4,
+        4927.4
       ],
-      "radius_px": 182.8,
+      "radius_px": 426.4,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 167.5,
+        "gain": 1.192
+      }
+    },
+    {
+      "center_xy": [
+        3598.1,
+        2568.8
+      ],
+      "radius_px": 426.4,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_055.jpg",
         "source_coin": 0,
-        "angle_deg": 237.1,
-        "gain": 0.802
+        "angle_deg": 295.3,
+        "gain": 1.043
+      }
+    },
+    {
+      "center_xy": [
+        2790.8,
+        1040.2
+      ],
+      "radius_px": 426.4,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 211.6,
+        "gain": 1.099
       }
     }
   ],
-  "notes": "ภาพสังเคราะห์จาก p1_white_room_top_003.jpg วาง THB_2 เพิ่ม 3 เหรียญ (data/synth_coins.py)",
+  "notes": "ภาพสังเคราะห์จาก p1_white_room_top_064.jpg วาง THB_2 เพิ่ม 4 เหรียญ (data/synth_coins.py)",
   "synthetic": {
-    "base": "p1_white_room_top_003.jpg",
+    "base": "p1_white_room_top_064.jpg",
     "coin": "THB_2",
     "seed": 0
   }

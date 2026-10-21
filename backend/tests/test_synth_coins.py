@@ -56,6 +56,25 @@ def test_paste_coins_uses_base_scale_and_free_space():
                 assert math.hypot(x - ox, y - oy) >= r + orad - 0.2   # ไม่ทับเหรียญอื่น
 
 
+def test_render_coin_mask_covers_label_radius():
+    cut = synth_coins.cut_coin(coin_image([{"center_xy": [300, 300], "radius_px": 60, "coin_type": "THB_2"}]),
+                               (300, 300), 60, "src.jpg", 0)
+    coin, mask = synth_coins.render_coin(cut, 40, 0, 1.0)
+    c = mask.shape[0] / 2
+    assert mask[int(c), int(c + 40 * 0.98)] > 0.99         # ขอบเหรียญในวงป้ายไม่ถูกตัด
+    assert mask[int(c), int(c + 40 * synth_coins.MASK_EDGE)] > 0.3
+    assert mask[int(c), -1] == 0                            # ภาพที่คืนกว้างพอให้หน้ากากจางเป็นศูนย์
+
+
+def test_ring_level_ignores_excluded_coins():
+    coin = {"center_xy": [400, 300], "radius_px": 40, "coin_type": "THB_1"}
+    g = synth_coins.gray(coin_image([coin]))
+    at = (400 - 2 * 40 * synth_coins.MASK_EDGE, 300)       # จุดวางที่ชิดเหรียญเดิมพอดี วงแหวนทับเหรียญเดิม
+    assert synth_coins.ring_level(g, at, 40)[1] > synth_coins.MAX_BG_STD
+    level, spread = synth_coins.ring_level(g, at, 40, [(400, 300, 40)])
+    assert level == BG and spread == 0
+
+
 def test_paste_coins_without_known_scale_adds_nothing():
     base = coin_image([])
     cut = synth_coins.cut_coin(coin_image([{"center_xy": [300, 300], "radius_px": 60, "coin_type": "THB_2"}]),

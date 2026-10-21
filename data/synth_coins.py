@@ -33,7 +33,8 @@ import dataset  # noqa: E402
 from dataset import COIN_TYPES, ROOT  # noqa: E402
 
 DIAMETER_MM = {t.code: t.diameter_mm for t in COIN_TYPES}
-MASK_SHRINK = 0.97       # หน้ากากเล็กกว่าวงป้ายนิดหน่อย กันพื้นหลังของภาพต้นทางติดมาเป็นวงรอบเหรียญ
+MASK_EDGE = 1.03         # ขอบหน้ากาก (เท่าของรัศมีป้าย) ขอบเหรียญจริงอยู่นอกวงป้ายเล็กน้อย (วัดจากภาพ tune: มัธยฐาน 1.025–1.033)
+                         # ถ้าตัดในวงป้ายจะเสียขอบเหรียญ เหรียญที่วางเห็นเล็กกว่าเหรียญจริงในภาพเดียวกัน
 FEATHER = 0.02           # ความนุ่มของขอบหน้ากาก (สัดส่วนของรัศมี)
 BG_RING = (1.15, 1.45)   # วงแหวนรอบเหรียญที่ใช้วัดความสว่างพื้นหลัง (เท่าของรัศมี)
 GAIN_RANGE = (0.8, 1.25) # ปรับความสว่างได้ไม่เกินช่วงนี้ ภาพฐานกับต้นทางแสงต่างกันมากกว่านี้ไม่ใช้
@@ -56,15 +57,24 @@ def gray(rgb: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
 
 
-def ring_level(g: np.ndarray, center: tuple[float, float], radius: float) -> tuple[float, float]:
-    """(มัธยฐาน, ค่าเบี่ยงเบน) ของภาพเทาในวงแหวน BG_RING รอบจุด ใช้วัดพื้นหลังรอบเหรียญ"""
+def ring_level(g: np.ndarray, center: tuple[float, float], radius: float,
+               exclude: list[tuple[float, float, float]] = ()) -> tuple[float, float]:
+    """(มัธยฐาน, ค่าเบี่ยงเบน) ของภาพเทาในวงแหวน BG_RING รอบจุด ใช้วัดพื้นหลังรอบเหรียญ
+
+    exclude = เหรียญ (x, y, r) ที่ไม่นับในวงแหวน (ตัดถึง BG_RING[0] เท่าของรัศมี รวมขอบและเงา)
+    ถ้าเหลือพื้นหลังไม่ถึงครึ่งวงแหวน คืนค่าเบี่ยงเบน inf
+    """
     h, w = g.shape
     x0, x1 = max(0, int(center[0] - radius * BG_RING[1])), min(w, int(center[0] + radius * BG_RING[1]) + 1)
     y0, y1 = max(0, int(center[1] - radius * BG_RING[1])), min(h, int(center[1] + radius * BG_RING[1]) + 1)
     yy, xx = np.mgrid[y0:y1, x0:x1]
     d = np.hypot(xx - center[0], yy - center[1])
-    vals = g[y0:y1, x0:x1][(d >= radius * BG_RING[0]) & (d <= radius * BG_RING[1])]
-    if vals.size == 0:
+    ring = (d >= radius * BG_RING[0]) & (d <= radius * BG_RING[1])
+    keep = ring.copy()
+    for ex, ey, er in exclude:
+        keep &= np.hypot(xx - ex, yy - ey) > er * BG_RING[0]
+    vals = g[y0:y1, x0:x1][keep]
+    if vals.size == 0 or vals.size < ring.sum() / 2:
         return 0.0, math.inf
     return float(np.median(vals)), float(vals.std())
 
@@ -87,14 +97,14 @@ def scale_mm_per_px(coins: list[dict]) -> float | None:
 
 def render_coin(cut: Cutout, radius: float, angle: float, gain: float) -> tuple[np.ndarray, np.ndarray]:
     """(ภาพเหรียญ float32, หน้ากาก 0..1) ขนาด S×S ศูนย์กลางอยู่กลางภาพ หมุน angle องศาและย่อให้ได้รัศมี radius"""
-    size = 2 * int(math.ceil(radius)) + 5
+    size = 2 * int(math.ceil(radius * (MASK_EDGE + FEATHER))) + 5
     m = cv2.getRotationMatrix2D(cut.center, angle, radius / cut.radius)
     m[:, 2] += (size / 2 - cut.center[0], size / 2 - cut.center[1])
     coin = cv2.warpAffine(cut.rgb, m, (size, size), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
     yy, xx = np.mgrid[0:size, 0:size]
     d = np.hypot(xx + 0.5 - size / 2, yy + 0.5 - size / 2)
     soft = max(1.0, FEATHER * radius)
-    mask = np.clip((radius * MASK_SHRINK - d) / soft + 0.5, 0, 1).astype(np.float32)
+    mask = np.clip((radius * MASK_EDGE - d) / soft + 0.5, 0, 1).astype(np.float32)
     return coin.astype(np.float32) * gain, mask
 
 
@@ -118,9 +128,10 @@ def paste_coins(base: np.ndarray, coins: list[dict], cutouts: list[Cutout], n: i
         for _ in range(TRIES_PER_COIN):
             x, y = rng.uniform(margin, w - margin), rng.uniform(margin, h - margin)
             gap = rng.uniform(0, MAX_GAP) * radius
-            if any(math.hypot(x - tx, y - ty) < tr + radius + gap for tx, ty, tr in taken):
+            if any(math.hypot(x - tx, y - ty) < (tr + radius) * MASK_EDGE + gap for tx, ty, tr in taken):
                 continue
-            level, spread = ring_level(g, (x, y), radius)
+            # ไม่นับเหรียญเดิมและเหรียญที่เพิ่งวางในวงแหวน ให้วางชิดได้ทั้งเหรียญจริงและเหรียญสังเคราะห์
+            level, spread = ring_level(g, (x, y), radius, taken)
             if spread > MAX_BG_STD:
                 continue
             cut = cutouts[rng.integers(len(cutouts))]

@@ -103,16 +103,16 @@
     },
     {
       "center_xy": [
-        720.4,
-        1472.2
+        650.1,
+        3217.7
       ],
       "radius_px": 408.8,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_055.jpg",
         "source_coin": 0,
-        "angle_deg": 58.5,
-        "gain": 1.204
+        "angle_deg": 351.2,
+        "gain": 1.228
       }
     }
   ],
