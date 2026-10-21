@@ -13,7 +13,12 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(cleanup)
 it('แสดงภาพกลางทางจากผลเดียวกัน และรองรับภาพที่โหลดไม่ได้', async () => {
   const data = analysis()
-  data.result.debug_images = { gray: '/gray.png' }
+  data.result.debug_images = {
+    detection_result: '/detected.png',
+    enhanced: '/enhanced.png',
+    gray: '/gray.png',
+    he: '/he.png',
+  }
   vi.mocked(getAnalysis).mockResolvedValue(data)
   render(
     <MemoryRouter initialEntries={['/about?analysis=test']}>
@@ -21,6 +26,13 @@ it('แสดงภาพกลางทางจากผลเดียวก�
     </MemoryRouter>,
   )
   const gray = await screen.findByAltText('ภาพระดับสีเทา')
+  expect(screen.getAllByRole('img').map((img) => img.getAttribute('alt'))).toEqual([
+    'ภาพต้นฉบับ',
+    'ภาพระดับสีเทา',
+    'ปรับความต่างระดับแสงทั้งภาพ',
+    'ภาพหลังลดจุดรบกวน',
+    'ตำแหน่งเหรียญที่ตรวจพบ',
+  ])
   expect(gray.getAttribute('src')).toBe('/gray.png')
   expect(screen.getByAltText('ภาพต้นฉบับ').getAttribute('src')).toBe('/original.png')
   fireEvent.error(gray)

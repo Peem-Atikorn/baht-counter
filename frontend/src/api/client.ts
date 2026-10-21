@@ -14,7 +14,7 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK === '1'
 
 export class ApiError extends Error {}
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function fetchOk(path: string, init?: RequestInit, fallback?: string): Promise<Response> {
   let res: Response
   try {
     res = await fetch(path, init)
@@ -24,10 +24,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     throw new ApiError(
-      typeof body?.detail === 'string' ? body.detail : `เกิดข้อผิดพลาด (${res.status})`,
+      typeof body?.detail === 'string'
+        ? body.detail
+        : (fallback ?? `เกิดข้อผิดพลาด (${res.status})`),
     )
   }
-  return res.json()
+  return res
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await fetchOk(path, init)).json()
 }
 
 export function getCoinTypes(): Promise<CoinTypeInfo[]> {
@@ -89,17 +95,10 @@ export function getHistory(limit = 20, offset = 0): Promise<HistoryPage> {
 
 export async function exportAnalysis(id: string, format: ExportFormat): Promise<Blob> {
   if (USE_MOCK) return mock.exportAnalysis(id, format)
-  let response: Response
-  try {
-    response = await fetch(`/api/analyses/${encodeURIComponent(id)}/export?format=${format}`)
-  } catch {
-    throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')
-  }
-  if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    throw new ApiError(
-      typeof body?.detail === 'string' ? body.detail : 'ดาวน์โหลดผลไม่สำเร็จ กรุณาลองใหม่',
-    )
-  }
+  const response = await fetchOk(
+    `/api/analyses/${encodeURIComponent(id)}/export?format=${format}`,
+    undefined,
+    'ดาวน์โหลดผลไม่สำเร็จ กรุณาลองใหม่',
+  )
   return response.blob()
 }

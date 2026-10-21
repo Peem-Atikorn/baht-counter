@@ -40,7 +40,7 @@ export default function CoinOverlay({
         if (point) onAdd(point)
       }}
     >
-      {result.coins.map((coin) => {
+      {result.coins.map((coin, index) => {
         const type = types.find((t) => t.code === coin.coin_type)
         const label =
           type?.name_th ?? (coin.coin_type === 'unknown' ? 'ไม่ใช่เหรียญไทย' : 'ยังไม่ทราบชนิด')
@@ -51,7 +51,7 @@ export default function CoinOverlay({
             key={coin.coin_id}
             role="button"
             tabIndex={busy ? -1 : 0}
-            aria-label={`เหรียญ ${coin.coin_id + 1}: ${label}`}
+            aria-label={`เหรียญ ${index + 1}: ${label}`}
             aria-pressed={selectedId === coin.coin_id}
             aria-disabled={busy}
             className="coin-target"

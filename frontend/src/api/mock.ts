@@ -230,11 +230,12 @@ export async function exportAnalysis(id: string, format: ExportFormat): Promise<
       c.color_group,
       c.source,
       c.status,
-      ...c.center_xy,
-      c.radius_px,
+      c.center_xy[0].toFixed(1),
+      c.center_xy[1].toFixed(1),
+      c.radius_px.toFixed(1),
     ].join(','),
   )
-  return new Blob(['\ufeff', [header, ...rows].join('\n'), '\n'], {
+  return new Blob([[header, ...rows].join('\n'), '\n'], {
     type: 'text/csv;charset=utf-8',
   })
 }

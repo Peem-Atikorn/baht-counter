@@ -3,20 +3,15 @@ import { imageUrl, USE_MOCK, type CountResult } from '../api/client'
 
 const LABELS: Record<string, string> = {
   gray: 'ภาพระดับสีเทา',
+  white_balanced: 'ภาพหลังปรับสมดุลสีขาว',
+  he: 'ปรับความต่างระดับแสงทั้งภาพ',
   clahe: 'ปรับความต่างระดับแสง',
   enhanced: 'ภาพหลังลดจุดรบกวน',
   detection_edges: 'ขอบเหรียญ',
+  detection_mask: 'พื้นที่เหรียญ',
   detection_distance: 'ระยะห่างจากขอบเหรียญ',
   detection_watershed: 'แยกเหรียญที่ชิดกัน',
   detection_result: 'ตำแหน่งเหรียญที่ตรวจพบ',
-  edges: 'ขอบเหรียญ',
-  mask: 'พื้นที่เหรียญ',
-  detection_mask: 'พื้นที่เหรียญ',
-  distance: 'ระยะห่างจากขอบ',
-  distance_map: 'ระยะห่างจากขอบ',
-  watershed: 'แยกเหรียญที่ชิดกัน',
-  circles: 'ตำแหน่งเหรียญ',
-  color: 'กลุ่มสีเหรียญ',
 }
 
 function DebugImage({ src, label }: { src: string; label: string }) {
@@ -34,7 +29,11 @@ function DebugImage({ src, label }: { src: string; label: string }) {
 }
 
 export default function DebugGallery({ id, result }: { id: string; result: CountResult }) {
-  const entries = Object.entries(result.debug_images ?? {})
+  const order = Object.keys(LABELS)
+  const rank = (name: string) => (order.includes(name) ? order.indexOf(name) : order.length)
+  const entries = Object.entries(result.debug_images ?? {}).sort(
+    ([a], [b]) => rank(a) - rank(b) || a.localeCompare(b),
+  )
   return (
     <section className="debug-section" aria-labelledby="debug-heading">
       <h3 id="debug-heading">ภาพแต่ละขั้นตอน</h3>

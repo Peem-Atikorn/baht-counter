@@ -20,13 +20,14 @@ import { saveDownload } from '../lib/download'
 
 type EditorProps = {
   coin: Coin
+  displayNumber: number
   types: CoinTypeInfo[]
   busy: boolean
   onSave: (code: CoinCode) => void
   onDelete: () => void
   onClose: () => void
 }
-function CoinEditor({ coin, types, busy, onSave, onDelete, onClose }: EditorProps) {
+function CoinEditor({ coin, displayNumber, types, busy, onSave, onDelete, onClose }: EditorProps) {
   const heading = useRef<HTMLHeadingElement>(null)
   const [code, setCode] = useState<CoinCode | ''>(coin.coin_type ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -37,7 +38,7 @@ function CoinEditor({ coin, types, busy, onSave, onDelete, onClose }: EditorProp
     <section className="coin-editor" aria-labelledby="editor-heading">
       <div className="section-heading">
         <h3 id="editor-heading" ref={heading} tabIndex={-1}>
-          แก้เหรียญ {coin.coin_id + 1}
+          แก้เหรียญ {displayNumber}
         </h3>
         <button disabled={busy} className="text-button" onClick={onClose}>
           ปิด
@@ -338,6 +339,7 @@ export default function Result() {
         <CoinEditor
           key={`${selected.coin_id}-${selected.coin_type}`}
           coin={selected}
+          displayNumber={r.coins.findIndex((c) => c.coin_id === selected.coin_id) + 1}
           types={types}
           busy={busy}
           onSave={(code) => {
@@ -396,7 +398,7 @@ export default function Result() {
       <section aria-labelledby="coin-list-heading">
         <h3 id="coin-list-heading">เหรียญแต่ละเหรียญ</h3>
         <ul className="coin-list">
-          {r.coins.map((coin) => (
+          {r.coins.map((coin, index) => (
             <li key={coin.coin_id}>
               <button
                 disabled={busy}
@@ -407,7 +409,7 @@ export default function Result() {
                 }}
               >
                 <span>
-                  เหรียญ {coin.coin_id + 1} ·{' '}
+                  เหรียญ {index + 1} ·{' '}
                   {types.find((t) => t.code === coin.coin_type)?.name_th ??
                     (coin.coin_type === 'unknown' ? 'ไม่ใช่เหรียญไทย' : 'ยังไม่ทราบชนิด')}
                 </span>

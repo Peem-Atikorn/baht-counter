@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, expect, it, vi } from 'vitest'
 import * as mock from './mock'
 
@@ -38,6 +39,10 @@ it('โหมดทดลองเพิ่ม แก้ ลบ และเร�
   const confirmed = await mock.updateCoin(id, 5, 'THB_10')
   expect(confirmed.result.status).toBe('ok')
   expect(confirmed.result.total_baht).toBeNull()
+  const csv = await (await mock.exportAnalysis(id, 'csv')).text()
+  expect(csv.startsWith('coin_id,coin_type')).toBe(true)
+  expect(csv.charCodeAt(0)).not.toBe(0xfeff)
+  expect(csv.split('\n')[1]?.split(',').at(-1)).toMatch(/^\d+\.\d$/)
   await expect(mock.addCoin(id, [900, 600])).rejects.toThrow('ตำแหน่งต้องอยู่ในภาพ')
   for (const coin of edited.result.coins) await mock.deleteCoin(id, coin.coin_id)
   const empty = await mock.getAnalysis(id)

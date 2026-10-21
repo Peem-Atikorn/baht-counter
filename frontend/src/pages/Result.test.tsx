@@ -43,6 +43,19 @@ async function selectFirst() {
 }
 
 describe('ผลการนับและการแก้เหรียญ', () => {
+  it('แสดงเลขเรียงต่อกันหลังลบ แต่ยังส่ง coin_id เดิมให้ API', async () => {
+    vi.mocked(getAnalysis).mockResolvedValue(analysis([coin(0), coin(7)]))
+    vi.mocked(updateCoin).mockResolvedValue(
+      analysis([coin(0), { ...coin(7, 'THB_5'), status: 'ok' }]),
+    )
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'เหรียญ 2: หนึ่งบาทจาก API' }))
+    expect(screen.getByRole('heading', { name: 'แก้เหรียญ 2' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /เหรียญ 8:/ })).toBeNull()
+    fireEvent.change(screen.getByLabelText('ชนิดเหรียญ'), { target: { value: 'THB_5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันชนิดเหรียญ' }))
+    await waitFor(() => expect(updateCoin).toHaveBeenCalledWith('test', 7, 'THB_5'))
+  })
   it('บอกวิธีรวมยอดเมื่อ backend ยืนยัน unknown เป็น ok แต่ยอดยังเป็น null', async () => {
     const data = analysis([{ ...coin(0, 'unknown'), status: 'ok', source: 'user_edited' }])
     data.result.status = 'ok'
