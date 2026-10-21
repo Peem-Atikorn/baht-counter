@@ -1,0 +1,109 @@
+{
+  "image": "synth_cloth_room_top_014.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2477.3,
+        2613.9
+      ],
+      "radius_px": 510.9,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1390.7,
+        2675.9
+      ],
+      "radius_px": 489.1,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1980.6,
+        3526.5
+      ],
+      "radius_px": 486.8,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        3317.0,
+        1509.0
+      ],
+      "radius_px": 415.5,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_cloth_room_top_029.jpg",
+        "source_coin": 0,
+        "angle_deg": 262.7,
+        "gain": 0.957
+      }
+    },
+    {
+      "center_xy": [
+        2818.6,
+        4330.3
+      ],
+      "radius_px": 415.5,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_cloth_room_top_031.jpg",
+        "source_coin": 0,
+        "angle_deg": 229.3,
+        "gain": 0.857
+      }
+    },
+    {
+      "center_xy": [
+        3556.6,
+        3639.1
+      ],
+      "radius_px": 415.5,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_cloth_room_top_009.jpg",
+        "source_coin": 13,
+        "angle_deg": 346.0,
+        "gain": 1.044
+      }
+    },
+    {
+      "center_xy": [
+        3545.0,
+        5092.7
+      ],
+      "radius_px": 415.5,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_cloth_room_top_029.jpg",
+        "source_coin": 0,
+        "angle_deg": 97.5,
+        "gain": 0.872
+      }
+    },
+    {
+      "center_xy": [
+        3608.0,
+        2520.9
+      ],
+      "radius_px": 415.5,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_cloth_room_top_029.jpg",
+        "source_coin": 0,
+        "angle_deg": 133.8,
+        "gain": 1.064
+      }
+    }
+  ],
+  "notes": "ภาพสังเคราะห์จาก p1_cloth_room_top_015.jpg วาง THB_2 เพิ่ม 5 เหรียญ (data/synth_coins.py)",
+  "synthetic": {
+    "base": "p1_cloth_room_top_015.jpg",
+    "coin": "THB_2",
+    "seed": 0
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "image": "synth_white_room_top_013.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        1819.1,
+        2061.3
+      ],
+      "radius_px": 444.5,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2793.9,
+        2402.8
+      ],
+      "radius_px": 448.1,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2533.1,
+        3309.2
+      ],
+      "radius_px": 440.4,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1781.9,
+        3961.1
+      ],
+      "radius_px": 487.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1490.1,
+        2955.3
+      ],
+      "radius_px": 474.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        3197.0,
+        913.0
+      ],
+      "radius_px": 487.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 39.9,
+        "gain": 1.16
+      }
+    },
+    {
+      "center_xy": [
+        827.1,
+        1152.7
+      ],
+      "radius_px": 487.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 355.2,
+        "gain": 1.148
+      }
+    },
+    {
+      "center_xy": [
+        3084.4,
+        4393.4
+      ],
+      "radius_px": 487.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 305.7,
+        "gain": 0.994
+      }
+    },
+    {
+      "center_xy": [
+        2100.6,
+        1002.7
+      ],
+      "radius_px": 487.3,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 39.1,
+        "gain": 1.142
+      }
+    }
+  ],
+  "notes": "ภาพสังเคราะห์จาก p1_white_room_top_096.jpg วาง THB_2 เพิ่ม 4 เหรียญ (data/synth_coins.py)",
+  "synthetic": {
+    "base": "p1_white_room_top_096.jpg",
+    "coin": "THB_2",
+    "seed": 0
+  }
+}

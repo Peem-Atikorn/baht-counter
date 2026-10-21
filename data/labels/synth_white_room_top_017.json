@@ -1,0 +1,125 @@
+{
+  "image": "synth_white_room_top_017.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2974.0,
+        2800.1
+      ],
+      "radius_px": 388.9,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1999.2,
+        2843.6
+      ],
+      "radius_px": 356.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1272.8,
+        2570.4
+      ],
+      "radius_px": 375.9,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2079.9,
+        1868.8
+      ],
+      "radius_px": 396.0,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1446.6,
+        3551.4
+      ],
+      "radius_px": 373.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1823.7,
+        813.5
+      ],
+      "radius_px": 408.8,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 77.8,
+        "gain": 1.148
+      }
+    },
+    {
+      "center_xy": [
+        774.2,
+        752.2
+      ],
+      "radius_px": 408.8,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 65.7,
+        "gain": 1.204
+      }
+    },
+    {
+      "center_xy": [
+        597.8,
+        4466.6
+      ],
+      "radius_px": 408.8,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_056.jpg",
+        "source_coin": 0,
+        "angle_deg": 124.6,
+        "gain": 1.186
+      }
+    },
+    {
+      "center_xy": [
+        2911.7,
+        754.2
+      ],
+      "radius_px": 408.8,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 247.8,
+        "gain": 1.123
+      }
+    },
+    {
+      "center_xy": [
+        3281.5,
+        1594.6
+      ],
+      "radius_px": 408.8,
+      "coin_type": "THB_2",
+      "synthetic": {
+        "source": "p1_white_room_top_055.jpg",
+        "source_coin": 0,
+        "angle_deg": 341.2,
+        "gain": 1.105
+      }
+    }
+  ],
+  "notes": "ภาพสังเคราะห์จาก p1_white_room_top_062.jpg วาง THB_2 เพิ่ม 5 เหรียญ (data/synth_coins.py)",
+  "synthetic": {
+    "base": "p1_white_room_top_062.jpg",
+    "coin": "THB_2",
+    "seed": 0
+  }
+}
