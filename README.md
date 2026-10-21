@@ -176,4 +176,29 @@ repo มี [`AGENTS.md`](AGENTS.md) บอก AI เรื่องโปรเ
 
 ## การติดตั้งและรัน
 
-_ยังไม่มี ส่วนที่ 4 จะเติมเมื่อมี `docker-compose.yml`_ (เป้าหมาย: `docker compose up` คำสั่งเดียว)
+_ยังไม่มี `docker-compose.yml` ส่วนที่ 4 จะเติม_ (เป้าหมาย: `docker compose up` คำสั่งเดียว) ระหว่างนี้รันแยกสองส่วน
+
+**Backend** (Python 3.11)
+
+```bash
+cd backend
+py -3.11 -m venv .venv                 # macOS/Linux: python3.11 -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt   # macOS/Linux: .venv/bin/python
+.venv/Scripts/python -m uvicorn app.main:app --reload
+```
+
+- เอกสาร API: http://localhost:8000/docs
+- เทสต์: `.venv/Scripts/python -m pytest`
+- ตอนนี้ทุกโมดูลเป็น mock สลับเป็นโมดูลจริงด้วย env `COIN_USE_MOCK` (`1` = mock ทั้งหมด (ค่าเริ่มต้น), `0` = ของจริงทั้งหมด, หรือระบุโมดูลที่ยังใช้ mock เช่น `COIN_USE_MOCK=detection,classification`)
+
+**Frontend** (Node 20+)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- เปิด http://localhost:5173 Vite ส่งต่อ `/api` ไปที่ backend พอร์ต 8000
+- ไม่รัน backend ก็ได้: `VITE_USE_MOCK=1 npm run dev`
+- schema ฝั่ง backend เปลี่ยน: รัน backend แล้ว `npm run gen:api` เพื่อสร้าง type ใหม่ใน `src/api/schema.d.ts`
