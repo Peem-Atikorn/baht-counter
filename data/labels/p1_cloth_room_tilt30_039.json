@@ -1,0 +1,34 @@
+{
+  "image": "p1_cloth_room_tilt30_039.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2663.5,
+        2998.8
+      ],
+      "radius_px": 531.4,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1533.5,
+        2911.9
+      ],
+      "radius_px": 485.8,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        2079.9,
+        2160.6
+      ],
+      "radius_px": 462.0,
+      "coin_type": "THB_10"
+    }
+  ],
+  "notes": ""
+}

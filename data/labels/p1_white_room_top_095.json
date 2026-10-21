@@ -1,0 +1,50 @@
+{
+  "image": "p1_white_room_top_095.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        1701.2,
+        3849.4
+      ],
+      "radius_px": 511.2,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2440.0,
+        3191.3
+      ],
+      "radius_px": 452.2,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2675.9,
+        2340.7
+      ],
+      "radius_px": 422.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1763.3,
+        2073.7
+      ],
+      "radius_px": 398.6,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1446.6,
+        2862.2
+      ],
+      "radius_px": 461.5,
+      "coin_type": "THB_1"
+    }
+  ],
+  "notes": ""
+}

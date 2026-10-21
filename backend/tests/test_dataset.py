@@ -95,6 +95,43 @@ def test_split_is_stratified_and_never_moves_existing(tmp_path):
     assert dataset.check(tmp_path).errors == []
 
 
+def add_timed_image(data: Path, name: str, seconds: int):
+    """ภาพ JPEG ที่มีเวลาถ่ายใน EXIF (วินาทีนับจาก 18:00:00) + ป้ายกำกับ"""
+    add_image(data, name)
+    exif = Image.Exif()
+    h, m, s = 18, seconds // 60, seconds % 60
+    exif.get_ifd(dataset.EXIF_IFD)[dataset.EXIF_DATETIME_ORIGINAL] = f"2026:10:21 {h}:{m:02d}:{s:02d}"
+    Image.new("RGB", (400, 300), (120, 120, 120)).save(data / "raw" / name, exif=exif.tobytes())
+
+
+def test_split_keeps_same_scene_together(tmp_path):
+    """ภาพที่ถ่ายห่างกันไม่กี่วินาที (ฉากเดียวกัน) ต้องอยู่ split เดียวกัน แม้ป้ายของภาพคู่มาทีหลัง"""
+    for k in range(10):
+        add_timed_image(tmp_path, f"p1_white_room_top_{2 * k:03d}.jpg", 60 * k)
+        add_timed_image(tmp_path, f"p1_white_room_top_{2 * k + 1:03d}.jpg", 60 * k + 2)
+    # ฉากเดียวกันข้ามกลุ่มเงื่อนไข (ถ่ายตรงแล้วเอียงทันที) และภาพคู่ที่ยังไม่มีป้าย
+    add_timed_image(tmp_path, "p1_white_room_tilt15_100.jpg", 60 * 9 + 4)
+    add_timed_image(tmp_path, "p1_white_room_top_101.jpg", 60 * 20)
+    add_image(tmp_path, "p1_white_room_top_102.jpg", label=False)
+    add_timed_image(tmp_path, "p1_white_room_top_102.jpg", 60 * 20 + 3)
+    (tmp_path / "labels" / "p1_white_room_top_102.json").unlink()
+
+    dataset.main(["--data", str(tmp_path), "split", "--test-frac", "0.3"])
+    first = dataset.load_splits(tmp_path)
+    for k in range(10):
+        assert first[f"p1_white_room_top_{2 * k:03d}.jpg"] == first[f"p1_white_room_top_{2 * k + 1:03d}.jpg"]
+    assert first["p1_white_room_tilt15_100.jpg"] == first["p1_white_room_top_019.jpg"]
+    assert 4 <= sum(s == "test" for s in first.values()) <= 8
+
+    # ป้ายของภาพคู่มาทีหลัง: ตาม split ของภาพแรกในฉาก ไม่ใช้ hash ของตัวเอง
+    coins = [{"center_xy": [50 + 100 * k, 150], "radius_px": 40, "coin_type": t} for k, t in enumerate(TYPES)]
+    (tmp_path / "labels" / "p1_white_room_top_102.json").write_text(json.dumps({"coins": coins}), encoding="utf-8")
+    dataset.main(["--data", str(tmp_path), "split", "--test-frac", "0.3"])
+    second = dataset.load_splits(tmp_path)
+    assert {n: second[n] for n in first} == first
+    assert second["p1_white_room_top_102.jpg"] == first["p1_white_room_top_101.jpg"]
+
+
 def test_split_dry_run_does_not_write(tmp_path):
     add_image(tmp_path, "p1_white_room_top_001.png")
     dataset.main(["--data", str(tmp_path), "split", "--dry-run"])
@@ -173,6 +210,38 @@ def test_import_web_export_restores_protocol_names(tmp_path):
     # นำเข้าซ้ำไม่เขียนทับ
     imported, skipped = dataset.import_export(data, zip_path)
     assert imported == [] and len(skipped) == 3
+
+
+def test_import_labels_image_already_in_raw(tmp_path):
+    """ภาพอยู่ใน raw/ แล้วแต่ยังไม่มีป้าย: เขียนเฉพาะป้าย ไม่แตะภาพเดิม ชื่อป้ายตามภาพที่มีอยู่ (นามสกุลอาจต่างจากใน zip)"""
+    import zipfile
+
+    data = tmp_path / "data"
+    (data / "raw").mkdir(parents=True)
+    for name in ("p1_white_room_top_001.jpg", "p1_white_room_top_002.jpg"):
+        cv2.imwrite(str(data / "raw" / name), np.full((300, 400, 3), 120, np.uint8))
+    original = (data / "raw" / "p1_white_room_top_001.jpg").read_bytes()
+
+    coins = [{"center_xy": [50 + 100 * k, 150], "radius_px": 40, "coin_type": t} for k, t in enumerate(TYPES)]
+    zip_path = tmp_path / "labels.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        for aid, source, size in [("aaa", "p1_white_room_top_001.jpg", [400, 300]),
+                                  ("bbb", "p1_white_room_top_002.jpg", [800, 600])]:
+            label = {"image": f"{aid}.png", "source_filename": source, "image_size": size,
+                     "coins": coins, "notes": ""}
+            zf.writestr(f"labels/{aid}.json", json.dumps(label))
+            zf.writestr(f"raw/{aid}.png", b"other bytes")
+
+    imported, skipped = dataset.import_export(data, zip_path)
+    assert imported == ["p1_white_room_top_001.jpg"]
+    assert (data / "raw" / "p1_white_room_top_001.jpg").read_bytes() == original
+    assert not (data / "raw" / "p1_white_room_top_001.png").exists()
+    label = json.loads((data / "labels" / "p1_white_room_top_001.json").read_text(encoding="utf-8"))
+    assert label["image"] == "p1_white_room_top_001.jpg"
+
+    # ขนาดไม่ตรง (เช่นภาพที่อัปโหลดถูกย่อ) พิกัดใช้ไม่ได้ ไม่เขียนป้าย
+    assert len(skipped) == 1 and "p1_white_room_top_002.jpg" in skipped[0]
+    assert not (data / "labels" / "p1_white_room_top_002.json").exists()
 
 
 def test_import_does_not_write_outside_raw(tmp_path):

@@ -1,0 +1,58 @@
+{
+  "image": "p1_cloth_room_tilt30_037.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        1974.4,
+        3042.3
+      ],
+      "radius_px": 330.6,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        2104.7,
+        2545.6
+      ],
+      "radius_px": 267.0,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        1465.3,
+        2663.5
+      ],
+      "radius_px": 291.9,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        1247.9,
+        3228.5
+      ],
+      "radius_px": 299.7,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        2334.5,
+        3576.2
+      ],
+      "radius_px": 324.9,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        2731.8,
+        3029.8
+      ],
+      "radius_px": 299.7,
+      "coin_type": "THB_0_50"
+    }
+  ],
+  "notes": ""
+}

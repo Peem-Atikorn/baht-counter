@@ -12,6 +12,7 @@
 - ภาพชื่อ `web_*` -> web, ภาพของทีม -> tune / test
 - ภาพของทีมแบ่งตามกลุ่ม (พื้นหลัง, แสง, มุม) จากชื่อไฟล์ ให้ test ได้สัดส่วน --test-frac ในทุกกลุ่ม
   ลำดับในกลุ่มตัดสินด้วย hash ของชื่อไฟล์ จึงได้ผลเดิมทุกครั้ง
+- ภาพที่ถ่ายห่างกันไม่เกิน SCENE_GAP_S วินาที (เวลาใน EXIF) เป็นฉากเดียวกัน อยู่ split เดียวกันเสมอ
 
 รูปแบบชื่อไฟล์และป้ายกำกับ: docs/photo-protocol.md, docs/labels.md
 """
@@ -25,6 +26,7 @@ import sys
 import zipfile
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from PIL import Image
@@ -47,6 +49,10 @@ MIN_LIGHTS = 2
 COINS_PER_IMAGE = (3, 30)
 
 EXIF_ORIENTATION = 0x0112
+EXIF_DATETIME = 0x0132
+EXIF_IFD = 0x8769
+EXIF_DATETIME_ORIGINAL = 0x9003
+SCENE_GAP_S = 6          # ถ่ายห่างกันไม่เกินนี้ = ฉากเดียวกัน (ชุดภาพทีม: กดถ่ายซ้ำ/ขยับเหรียญเล็กน้อยส่วนใหญ่ห่าง 1–5 วินาที)
 SWAPPED_ORIENTATIONS = {5, 6, 7, 8}   # หมุน 90/270 องศา กว้างกับสูงสลับกัน
 
 
@@ -210,12 +216,41 @@ def check(data: Path) -> Report:
     return rep
 
 
+def capture_time(path: Path) -> datetime | None:
+    """เวลาถ่ายจาก EXIF (DateTimeOriginal หรือ DateTime) หรือ None ถ้าไม่มี"""
+    with Image.open(path) as img:
+        exif = img.getexif()
+        raw = exif.get_ifd(EXIF_IFD).get(EXIF_DATETIME_ORIGINAL) or exif.get(EXIF_DATETIME)
+    try:
+        return datetime.strptime(str(raw).strip(), "%Y:%m:%d %H:%M:%S") if raw else None
+    except ValueError:
+        return None
+
+
+def scene_ids(images: dict[str, Path]) -> dict[str, str]:
+    """ชื่อภาพ -> รหัสฉาก ภาพที่ถ่ายห่างกันไม่เกิน SCENE_GAP_S วินาทีถือเป็นฉากเดียวกัน (กดถ่ายซ้ำ/ขยับนิดเดียว)
+    ภาพที่ไม่มีเวลาใน EXIF เป็นฉากของตัวเอง"""
+    timed = sorted((t, n) for n, p in images.items() if (t := capture_time(p)) is not None)
+    out = {n: n for n in images}
+    prev = None
+    for t, n in timed:
+        if prev is not None and (t - prev[0]).total_seconds() <= SCENE_GAP_S:
+            out[n] = out[prev[1]]
+        prev = (t, n)
+    return out
+
+
 def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[str, str]]:
-    """คืน (splits ทั้งหมดหลังเพิ่ม, เฉพาะภาพใหม่ที่เพิ่ม) ภาพเดิมไม่ถูกย้าย"""
+    """คืน (splits ทั้งหมดหลังเพิ่ม, เฉพาะภาพใหม่ที่เพิ่ม) ภาพเดิมไม่ถูกย้าย
+
+    ภาพฉากเดียวกัน (scene_ids) อยู่ split เดียวกันเสมอ ไม่งั้นภาพแทบซ้ำกันจะอยู่ทั้ง tune และ test
+    ทำให้ผลชุดทดสอบดีเกินจริง ภาพใหม่ที่ฉากมี split อยู่แล้วตาม split นั้น
+    """
     images = find_images(data)
     labelled = sorted(n for n in images if label_path(data, n).exists())
     splits = load_splits(data)
     new = [n for n in labelled if n not in splits]
+    scene = scene_ids({n: p for n, p in images.items() if not is_web(n)})
 
     added: dict[str, str] = {}
     by_group: dict[object, list[str]] = defaultdict(list)
@@ -225,13 +260,23 @@ def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[st
         else:
             by_group[protocol_group(n)].append(n)    # ชื่อไม่ตรงรูปแบบรวมอยู่กลุ่ม None
 
+    def scene_split(sid: str) -> str | None:
+        return next((s for n, s in {**splits, **added}.items() if scene.get(n) == sid), None)
+
     for group, names in by_group.items():
         existing = [s for n, s in splits.items() if not is_web(n) and protocol_group(n) == group]
-        total = len(existing) + len(names)
-        n_test = max(0, round(test_frac * total) - existing.count("test"))
-        names.sort(key=lambda n: hashlib.sha1(n.encode()).hexdigest())
-        for k, n in enumerate(names):
-            added[n] = "test" if k < n_test else "tune"
+        n_test = max(0, round(test_frac * (len(existing) + len(names))) - existing.count("test"))
+        units: dict[str, list[str]] = defaultdict(list)
+        for n in names:
+            units[scene[n]].append(n)
+        for sid in sorted(units, key=lambda s: hashlib.sha1(s.encode()).hexdigest()):
+            split = scene_split(sid)
+            if split is None:
+                split = "test" if n_test > 0 else "tune"
+            if split == "test":
+                n_test -= len(units[sid])
+            for n in units[sid]:
+                added[n] = split
     return {**splits, **added}, added
 
 
@@ -240,11 +285,12 @@ def import_export(data: Path, zip_path: Path) -> tuple[list[str], list[str]]:
 
     ในหน้าเว็บไฟล์ถูกตั้งชื่อด้วย analysis_id จึงเปลี่ยนกลับเป็นชื่อเดิม (`source_filename`) เมื่อชื่อเดิมตรงรูปแบบ
     โปรโตคอลหรือขึ้นต้นด้วย web_ ไม่งั้นใช้ชื่อ analysis_id และ check จะเตือนให้เปลี่ยนชื่อเอง
-    ไม่เขียนทับภาพหรือป้ายกำกับที่มีอยู่แล้ว
+    ไม่เขียนทับภาพหรือป้ายกำกับที่มีอยู่แล้ว ถ้ามีภาพชื่อนี้อยู่แล้วแต่ยังไม่มีป้าย (ติดป้ายภาพที่อยู่ใน raw/ ผ่านหน้าเว็บ)
+    เขียนเฉพาะป้ายกำกับ โดยขนาดภาพต้องตรงกัน เพราะพิกัดในป้ายอิงพิกเซลของภาพที่อัปโหลด
     """
     (data / "raw").mkdir(parents=True, exist_ok=True)
     (data / "labels").mkdir(parents=True, exist_ok=True)
-    existing = {Path(n).stem for n in find_images(data)}
+    existing = {Path(n).stem: p for n, p in find_images(data).items()}
     imported, skipped = [], []
     with zipfile.ZipFile(zip_path) as zf:
         for entry in sorted(n for n in zf.namelist() if n.startswith("labels/") and n.endswith(".json")):
@@ -253,8 +299,17 @@ def import_export(data: Path, zip_path: Path) -> tuple[list[str], list[str]]:
             source = Path(label.get("source_filename") or "").name
             keep_source = source and (protocol_group(source) or is_web(source))
             name = Path(source).stem + Path(exported).suffix if keep_source else exported
-            if Path(name).stem in existing or label_path(data, name).exists():
-                skipped.append(f"{name}: มีอยู่แล้ว ไม่เขียนทับ")
+            if label_path(data, name).exists():
+                skipped.append(f"{name}: มีป้ายกำกับอยู่แล้ว ไม่เขียนทับ")
+                continue
+            if (image := existing.get(Path(name).stem)) is not None:
+                size = label.get("image_size")
+                if size is None or tuple(size) != oriented_size(image):
+                    skipped.append(f"{image.name}: ขนาดภาพในป้าย {size} ไม่ตรงกับภาพที่มีอยู่ {oriented_size(image)}")
+                    continue
+                label["image"] = image.name
+                label_path(data, image.name).write_text(json.dumps(label, ensure_ascii=False, indent=2), encoding="utf-8")
+                imported.append(image.name)
                 continue
             try:
                 image_bytes = zf.read(f"raw/{exported}")
@@ -264,7 +319,7 @@ def import_export(data: Path, zip_path: Path) -> tuple[list[str], list[str]]:
             (data / "raw" / name).write_bytes(image_bytes)
             label["image"] = name
             label_path(data, name).write_text(json.dumps(label, ensure_ascii=False, indent=2), encoding="utf-8")
-            existing.add(Path(name).stem)
+            existing[Path(name).stem] = data / "raw" / name
             imported.append(name)
     return imported, skipped
 
