@@ -176,7 +176,21 @@ repo มี [`AGENTS.md`](AGENTS.md) บอก AI เรื่องโปรเ
 
 ## การติดตั้งและรัน
 
-_ยังไม่มี `docker-compose.yml` ส่วนที่ 4 จะเติม_ (เป้าหมาย: `docker compose up` คำสั่งเดียว) ระหว่างนี้รันแยกสองส่วน
+### รันทั้งระบบด้วย Docker (แนะนำ)
+
+```bash
+docker compose up --build
+```
+
+เปิด http://localhost:8000 — หน้าเว็บและ API อยู่พอร์ตเดียวกัน ข้อมูล (SQLite + ภาพ) เก็บใน volume
+`baht_data` ไม่หายเมื่อรีสตาร์ท ค่าเริ่มต้นทุกโมดูลเป็น mock เลือกใช้โมดูลจริงเป็นรายขั้นด้วย env
+`COIN_USE_MOCK` เช่น
+
+```bash
+COIN_USE_MOCK=detection docker compose up --build   # preprocess + classification จริง, detection ยัง mock
+```
+
+### พัฒนา: รันแยก backend/frontend
 
 **Backend** (Python 3.11)
 
@@ -189,9 +203,11 @@ py -3.11 -m venv .venv                 # macOS/Linux: python3.11 -m venv .venv
 
 - เอกสาร API: http://localhost:8000/docs
 - เทสต์: `.venv/Scripts/python -m pytest`
-- ตอนนี้ทุกโมดูลเป็น mock สลับเป็นโมดูลจริงด้วย env `COIN_USE_MOCK` (`1` = mock ทั้งหมด (ค่าเริ่มต้น), `0` = ของจริงทั้งหมด, หรือระบุโมดูลที่ยังใช้ mock เช่น `COIN_USE_MOCK=detection,classification`)
+- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (`1` = mock ทั้งหมด (ค่าเริ่มต้น), `0` = ของจริงทั้งหมด,
+  หรือระบุโมดูลที่ยังใช้ mock เช่น `COIN_USE_MOCK=detection`) ตอนนี้ `preprocess` และ `classification`
+  เป็นของจริงแล้ว เหลือ `detection` (ส่วนที่ 2) ที่ยังเป็น mock
 
-**Frontend** (Node 20+)
+**Frontend** (Node `^22.22.2` หรือ `^24.15.0` — `jsdom` ของ vitest ต้องการเวอร์ชันนี้ CI และ Dockerfile ใช้ 24)
 
 ```bash
 cd frontend
@@ -201,4 +217,5 @@ npm run dev
 
 - เปิด http://localhost:5173 Vite ส่งต่อ `/api` ไปที่ backend พอร์ต 8000
 - ไม่รัน backend ก็ได้: `VITE_USE_MOCK=1 npm run dev`
+- เทสต์: `npm test` (vitest), lint: `npm run lint`
 - schema ฝั่ง backend เปลี่ยน: รัน backend แล้ว `npm run gen:api` เพื่อสร้าง type ใหม่ใน `src/api/schema.d.ts`
