@@ -53,7 +53,7 @@ const COIN_TYPES: CoinTypeInfo[] = [
     code: 'THB_10',
     name_th: '10 บาท',
     value_baht: 10,
-    diameter_mm: 26,
+    diameter_mm: 25.6,
     color_group: 'bimetal',
     display_color: '#16a34a',
   },
@@ -75,7 +75,7 @@ export async function getCoinTypes() {
 export async function createAnalysis(image: Blob): Promise<AnalysisResponse> {
   const [w, h] = await imageSize(image)
   const step = w / (COIN_TYPES.length + 1)
-  const pxPerMm = (step * 0.8) / 26
+  const pxPerMm = (step * 0.8) / Math.max(...COIN_TYPES.map((t) => t.diameter_mm))
   const coins: Coin[] = COIN_TYPES.map((t, i) => ({
     coin_id: i,
     center_xy: [step * (i + 1), h / 2],
@@ -102,7 +102,7 @@ export async function createAnalysis(image: Blob): Promise<AnalysisResponse> {
   const response: AnalysisResponse = {
     analysis_id: id,
     result: {
-      schema_version: '0.2.0',
+      schema_version: '0.2.1',
       image_size: [w, h],
       coins,
       total_baht: null,
