@@ -131,7 +131,8 @@ export function imageUrl(id: string): string {
 function commitResult(id: string, coins: Coin[]): AnalysisResponse {
   const item = store.get(id)
   if (!item) throw new Error('ไม่พบผลการนับนี้')
-  const needs = coins.some((c) => c.value_baht == null)
+  const missingValue = coins.some((c) => c.value_baht == null)
+  const needs = coins.some((c) => c.status === 'needs_confirmation')
   const empty = coins.length === 0
   const result = item.response.result
   item.response = {
@@ -140,7 +141,7 @@ function commitResult(id: string, coins: Coin[]): AnalysisResponse {
       ...result,
       coins,
       total_baht:
-        needs || empty
+        missingValue || empty
           ? null
           : Math.round(coins.reduce((sum, c) => sum + c.value_baht!, 0) * 100) / 100,
       status: empty ? 'failed' : needs ? 'needs_confirmation' : 'ok',
@@ -151,6 +152,7 @@ function commitResult(id: string, coins: Coin[]): AnalysisResponse {
 }
 
 export async function updateCoin(id: string, coinId: number, code: CoinCode) {
+  // จำลอง apply_user_coin เท่านั้น ไม่หาสเกลหรือใช้ anchor คำนวณเหรียญอื่นใหม่
   const data = await getAnalysis(id)
   const target = data.result.coins.find((c) => c.coin_id === coinId)
   if (!target) throw new Error('ไม่พบเหรียญนี้')
@@ -160,11 +162,12 @@ export async function updateCoin(id: string, coinId: number, code: CoinCode) {
       ? ({
           ...c,
           coin_type: code,
-          color_group: type?.color_group ?? 'unknown',
+          color_group: type?.color_group ?? c.color_group,
           value_baht: type?.value_baht ?? null,
-          source: c.source === 'user_added' ? 'user_added' : 'user_edited',
-          status: code === 'unknown' ? 'needs_confirmation' : 'ok',
-          reason: code === 'unknown' ? 'ไม่ใช่เหรียญไทยที่รองรับ' : null,
+          confidence: null,
+          source: 'user_edited',
+          status: 'ok',
+          reason: code === 'unknown' ? 'ไม่ใช่เหรียญไทย ลบเหรียญนี้ออกเพื่อให้รวมยอดได้' : null,
         } as Coin)
       : c,
   )

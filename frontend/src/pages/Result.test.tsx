@@ -43,6 +43,23 @@ async function selectFirst() {
 }
 
 describe('ผลการนับและการแก้เหรียญ', () => {
+  it('บอกวิธีรวมยอดเมื่อ backend ยืนยัน unknown เป็น ok แต่ยอดยังเป็น null', async () => {
+    const data = analysis([{ ...coin(0, 'unknown'), status: 'ok', source: 'user_edited' }])
+    data.result.status = 'ok'
+    vi.mocked(getAnalysis).mockResolvedValue(data)
+    open()
+    expect(await screen.findByText('ยังรวมยอดไม่ได้')).toBeTruthy()
+    expect(screen.getByText('มีวัตถุที่ไม่ใช่เหรียญไทย 1 ชิ้น ลบออกเพื่อรวมยอด')).toBeTruthy()
+    expect(screen.queryByText('นับเรียบร้อย')).toBeNull()
+  })
+  it('ไม่เพิ่มเหรียญตรงมุมภาพโดยอัตโนมัติเมื่อยังไม่กรอกพิกัด', async () => {
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: 'เพิ่มเหรียญที่ยังไม่ถูกนับ' }))
+    expect((screen.getByLabelText('พิกัด X (พิกเซล)') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('พิกัด Y (พิกเซล)') as HTMLInputElement).value).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มที่พิกัดนี้' }))
+    expect(addCoin).not.toHaveBeenCalled()
+  })
   it('แสดง unknown แยกจากชนิดที่ยังไม่ทราบ และไม่แทนค่าด้วยศูนย์', async () => {
     vi.mocked(getAnalysis).mockResolvedValue(analysis([coin(0), coin(1, 'unknown'), coin(2, null)]))
     open()

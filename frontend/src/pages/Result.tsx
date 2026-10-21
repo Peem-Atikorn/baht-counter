@@ -113,8 +113,8 @@ export default function Result() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
-  const [x, setX] = useState('0')
-  const [y, setY] = useState('0')
+  const [x, setX] = useState('')
+  const [y, setY] = useState('')
 
   useEffect(() => {
     let active = true
@@ -209,6 +209,11 @@ export default function Result() {
     .filter((row) => row.n > 0)
   const unresolved = r.coins.filter((c) => !c.coin_type).length
   const notThai = r.coins.filter((c) => c.coin_type === 'unknown').length
+  const displayStatus = r.status === 'ok' && r.total_baht == null ? 'needs_confirmation' : r.status
+  const statusLabel =
+    displayStatus === 'needs_confirmation' && r.total_baht == null
+      ? 'ยังรวมยอดไม่ได้'
+      : STATUS_TH[displayStatus]
   const addAt = (xy: [number, number]) => {
     void change(() => addCoin(id, xy), 'add')
   }
@@ -220,8 +225,8 @@ export default function Result() {
           ประวัติ
         </Link>
       </div>
-      <p className={`result-status status-${r.status}`}>
-        {STATUS_TH[r.status]}
+      <p className={`result-status status-${displayStatus}`}>
+        {statusLabel}
         {r.reason ? ` · ${r.reason}` : ''}
       </p>
       <p>เลือกวงเหรียญบนภาพ หรือเลือกจากรายการด้านล่างเพื่อยืนยันชนิด</p>
@@ -233,6 +238,8 @@ export default function Result() {
           onClick={() => {
             setAdding(!adding)
             setSelectedId(null)
+            setX('')
+            setY('')
           }}
         >
           {adding ? 'ยกเลิกเพิ่มเหรียญ' : 'เพิ่มเหรียญที่ยังไม่ถูกนับ'}
@@ -346,6 +353,12 @@ export default function Result() {
         <p>ยอดรวม</p>
         <strong>{baht(r.total_baht)}</strong>
         <p>{r.coins.length} เหรียญ</p>
+        {r.total_baht == null && notThai > 0 && (
+          <p>มีวัตถุที่ไม่ใช่เหรียญไทย {notThai} ชิ้น ลบออกเพื่อรวมยอด</p>
+        )}
+        {r.total_baht == null && unresolved > 0 && (
+          <p>มีเหรียญที่ยังไม่ทราบชนิด {unresolved} เหรียญ เลือกชนิดเพื่อรวมยอด</p>
+        )}
       </div>
       <table className="summary-table">
         <caption className="sr-only">จำนวนและมูลค่าแยกตามชนิดเหรียญ</caption>
