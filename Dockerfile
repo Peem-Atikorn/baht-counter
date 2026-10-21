@@ -1,5 +1,5 @@
 # build frontend ก่อน แล้วค่อยเสิร์ฟจาก backend เดียวกัน (เว็บ + API อยู่คนละ stage คนละ image สุดท้าย)
-FROM node:22-slim AS frontend-build
+FROM node:24-slim AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci

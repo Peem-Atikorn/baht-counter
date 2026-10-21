@@ -22,9 +22,17 @@ CREATE TABLE IF NOT EXISTS analyses (
     original_ext TEXT NOT NULL,
     result_json TEXT NOT NULL,
     timings_json TEXT NOT NULL,
-    edit_count INTEGER NOT NULL DEFAULT 0
+    edit_count INTEGER NOT NULL DEFAULT 0,
+    fake_radius_coin_ids TEXT NOT NULL DEFAULT '[]'
 )
 """
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """เติมคอลัมน์ที่เพิ่มหลัง DB เก่าถูกสร้างไปแล้ว ไม่กระทบแถวเดิม (ค่าเริ่มต้นจาก DEFAULT)"""
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(analyses)")}
+    if "fake_radius_coin_ids" not in cols:
+        conn.execute("ALTER TABLE analyses ADD COLUMN fake_radius_coin_ids TEXT NOT NULL DEFAULT '[]'")
 
 
 @contextmanager
@@ -32,6 +40,7 @@ def _connect() -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(storage.db_path())
     conn.row_factory = sqlite3.Row
     conn.execute(_SCHEMA)  # IF NOT EXISTS — ทำให้ไม่ต้องสนลำดับการเรียก init_db()
+    _migrate(conn)
     try:
         yield conn
         conn.commit()
@@ -53,6 +62,7 @@ def _row_to_record(row: sqlite3.Row) -> dict:
         "result": CountResult.model_validate_json(row["result_json"]),
         "timings": json.loads(row["timings_json"]),
         "edit_count": row["edit_count"],
+        "fake_radius_coin_ids": set(json.loads(row["fake_radius_coin_ids"])),
     }
 
 
@@ -94,6 +104,22 @@ def update_result(analysis_id: str, result: CountResult) -> None:
         conn.execute(
             "UPDATE analyses SET result_json = ?, edit_count = edit_count + 1 WHERE id = ?",
             (result.model_dump_json(), analysis_id),
+        )
+
+
+def mark_fake_radius(analysis_id: str, coin_id: int) -> None:
+    """จำว่า coin_id นี้มีรัศมีเป็นค่าสมมติ (ไม่ใช่ขนาดจริง) — ห้ามใช้เป็น anchor คำนวณสเกลทั้งภาพ"""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT fake_radius_coin_ids FROM analyses WHERE id = ?", (analysis_id,),
+        ).fetchone()
+        if row is None:
+            return
+        ids = set(json.loads(row["fake_radius_coin_ids"]))
+        ids.add(coin_id)
+        conn.execute(
+            "UPDATE analyses SET fake_radius_coin_ids = ? WHERE id = ?",
+            (json.dumps(sorted(ids)), analysis_id),
         )
 
 

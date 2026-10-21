@@ -8,6 +8,7 @@
 
 import logging
 import os
+import statistics
 import time
 
 import numpy as np
@@ -19,8 +20,8 @@ log = logging.getLogger("pipeline")
 
 STAGES = ("preprocess", "detection", "classification")
 
-# รัศมีเริ่มต้น (พิกเซลของภาพต้นฉบับ) เมื่อผู้ใช้กดเพิ่มเหรียญ และส่วนที่ 2 ยังไม่มี detect_coin_at
-DEFAULT_ADD_RADIUS_PX = 40.0
+# เมื่อไม่มีเหรียญอื่นในภาพให้ประมาณรัศมี (ตอนผู้ใช้เพิ่มเหรียญแรกโดยไม่มี detect_coin_at)
+FALLBACK_RADIUS_FRACTION = 0.03  # ของด้านสั้นของภาพ
 
 
 def mock_stages() -> set[str]:
@@ -124,10 +125,15 @@ def _preprocess_original(image: np.ndarray) -> PreprocessResult:
 def _reset_classification(c: Coin) -> Coin:
     """ล้างผลจำแนกเดิมก่อนส่งให้ classify_coins ใหม่ เหมือนเหรียญที่เพิ่งมาจาก detect_coins
 
-    classify_coins (รวม mock) ไม่เคยรีเซ็ต status/reason ของเหรียญที่ไม่ใช่ anchor เอง (แค่ไม่เซ็ตให้ใหม่)
+    ยกเว้นเหรียญที่ผู้ใช้ยืนยันชนิดไว้แล้ว (`source != "estimated"` และมี `coin_type`) — ไม่ล้าง
+    classify_coins จริงใช้ `source`/`coin_type` นี้เป็นข้อจำกัด (`fixed`) คงชนิดนั้นไว้แทนเดาใหม่
+    ถ้าล้างไปด้วย เหรียญที่ผู้ใช้เลือกไว้ก่อนจะถูกเดาใหม่ทับ (ชนิดที่ผู้ใช้เลือกหายไป)
+
+    ของเหรียญที่ยังล้าง: classify_coins (รวม mock) ไม่เคยรีเซ็ต status/reason เอง (แค่ไม่เซ็ตให้ใหม่)
     ถ้าไม่ล้างก่อน เหรียญที่เคย needs_confirmation ในรอบก่อนจะค้างสถานะนั้นแม้จำแนกใหม่ได้ชนิดแล้ว
-    `source` (ที่มาของเหรียญ ไม่ใช่ผลจำแนก) เก็บไว้เหมือนเดิม
     """
+    if c.source != "estimated" and c.coin_type is not None:
+        return c
     return c.model_copy(update={
         "color_group": "unknown", "coin_type": None, "value_baht": None,
         "confidence": None, "status": "ok", "reason": None,
@@ -153,11 +159,16 @@ def reclassify(image: np.ndarray, coins: list[Coin], anchor: tuple[int, str] | N
     })
 
 
-def locate_added_coin(image: np.ndarray, xy: tuple[float, float]) -> Coin | None:
+def locate_added_coin(
+    image: np.ndarray, xy: tuple[float, float], existing_coins: list[Coin],
+) -> tuple[Coin, bool] | None:
     """หาเหรียญรอบจุดที่ผู้ใช้กด (xy เป็นพิกัดภาพต้นฉบับ) ใช้ตอน POST .../coins
 
-    ใช้ `detection.detect_coin_at(pre, xy)` ของส่วนที่ 2 ถ้ามี (ยังไม่บังคับ ดู AGENTS.md)
-    ไม่งั้นวางวงกลมรัศมีค่าเริ่มต้น (`DEFAULT_ADD_RADIUS_PX`) ตรงจุดที่กด คืน None ถ้าปรับปรุงภาพไม่สำเร็จ
+    ใช้ `detection.detect_coin_at(pre, xy)` ของส่วนที่ 2 ถ้ามี (ยังไม่บังคับ ดู AGENTS.md) ไม่งั้นประมาณรัศมี
+    จากมัธยฐานของเหรียญอื่นในภาพ หรือ `FALLBACK_RADIUS_FRACTION` ของด้านสั้นถ้าไม่มีเหรียญอื่นให้เทียบ
+
+    คืน `(เหรียญ, เป็นรัศมีสมมติหรือไม่)` หรือ `None` ถ้าปรับปรุงภาพไม่สำเร็จ รัศมีสมมติ (`True`)
+    ห้ามใช้เป็น anchor คำนวณสเกลทั้งภาพ เพราะไม่ใช่ขนาดจริงของเหรียญ (ดู main.py / docs/backend.md)
     """
     pre = _preprocess_original(image)
     if pre.status == "failed":
@@ -166,6 +177,14 @@ def locate_added_coin(image: np.ndarray, xy: tuple[float, float]) -> Coin | None
     local_xy = (xy[0] * f, xy[1] * f)
     detect_at = getattr(detection, "detect_coin_at", None)
     coin = detect_at(pre, local_xy) if detect_at else None
-    if coin is None:
-        coin = Coin(coin_id=0, center_xy=local_xy, radius_px=DEFAULT_ADD_RADIUS_PX * f)
-    return _to_original(coin, f)
+    if coin is not None:
+        return _to_original(coin, f), False
+
+    radii = [c.radius_px * f for c in existing_coins]
+    if radii:
+        radius = statistics.median(radii)
+    else:
+        h, w = pre.image.shape[:2]
+        radius = FALLBACK_RADIUS_FRACTION * min(h, w)
+    coin = Coin(coin_id=0, center_xy=local_xy, radius_px=radius)
+    return _to_original(coin, f), True

@@ -11,6 +11,7 @@ from .models import (
     SCHEMA_VERSION,
     AnalysisResponse,
     Coin,
+    CoinCode,
     CoinTypeInfo,
     CountResult,
     PreprocessResult,
