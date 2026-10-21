@@ -11,7 +11,7 @@ TARGET_LONG_SIDE = 1600
 def preprocess(image: np.ndarray) -> PreprocessResult:
     """รับภาพ BGR ที่หมุนตาม EXIF แล้ว (app ทำตอนอ่านไฟล์)
 
-    TODO(ส่วนที่ 1, สัปดาห์ 2): CLAHE, median filter, ตรวจเบลอ (Laplacian variance),
+    TODO(ส่วนที่ 1): CLAHE, median filter, ตรวจเบลอ (Laplacian variance),
     มืด/สว่างเกิน, ภาพเล็กเกินไป พร้อม reason ภาษาไทย
     """
     raise NotImplementedError("preprocess ยังไม่เสร็จ ใช้ mock_preprocess ไปก่อน")
