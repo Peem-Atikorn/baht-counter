@@ -9,6 +9,7 @@
 กติกา split
 - ภาพที่อยู่ใน splits.csv แล้ว **ไม่ถูกย้าย** (ชุดทดสอบล็อกหลังสัปดาห์ 3) เพิ่มได้แค่ภาพใหม่
 - หลังล็อกชุด test ใช้ `split --test-frac 0` ภาพใหม่ของทีมไป tune ทั้งหมด ชุด test ไม่โตขึ้น
+  (ภาพใหม่ที่ฉากเดียวกับภาพใน test ไม่ถูกเพิ่มเลย ไม่งั้นฉากเดียวกันจะอยู่ทั้ง tune และ test)
 - ภาพชื่อ `web_*` -> web, ภาพของทีม -> tune / test
 - ภาพของทีมแบ่งตามกลุ่ม (พื้นหลัง, แสง, มุม) จากชื่อไฟล์ ให้ test ได้สัดส่วน --test-frac ในทุกกลุ่ม
   ลำดับในกลุ่มตัดสินด้วย hash ของชื่อไฟล์ จึงได้ผลเดิมทุกครั้ง
@@ -178,6 +179,8 @@ def check(data: Path) -> Report:
             rep.errors.append(f"splits.csv: {image} ยังไม่มีป้ายกำกับ")
         if is_web(image) and split != "web":
             rep.errors.append(f"splits.csv: {image} เป็นภาพจากเว็บ ต้องอยู่ใน split web")
+    scene = scene_ids({n: p for n, p in images.items() if not is_web(n)})
+    rep.errors += [f"splits.csv: {c}" for c in scene_conflicts(splits, scene)]
     unsplit = sorted(set(types_by_image) - set(splits))
     if unsplit:
         rep.warnings.append(f"มี {len(unsplit)} ภาพที่มีป้ายกำกับแต่ยังไม่อยู่ใน splits.csv (รัน `python data/dataset.py split`)")
@@ -240,19 +243,40 @@ def scene_ids(images: dict[str, Path]) -> dict[str, str]:
     return out
 
 
-def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[str, str]]:
-    """คืน (splits ทั้งหมดหลังเพิ่ม, เฉพาะภาพใหม่ที่เพิ่ม) ภาพเดิมไม่ถูกย้าย
+class SplitConflict(Exception):
+    """ฉากเดียวกันมีภาพอยู่หลาย split ใน splits.csv ต้องให้คนตัดสินเอง เพราะภาพเดิมห้ามย้ายอัตโนมัติ"""
+
+
+def scene_conflicts(splits: dict[str, str], scene: dict[str, str]) -> list[str]:
+    """ข้อความของฉากที่มีภาพอยู่ทั้ง tune และ test (เกิดได้เมื่อภาพใหม่ถ่ายคั่นกลางจนเชื่อมสองฉากเดิมเข้าด้วยกัน)"""
+    by_scene: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    for n, s in splits.items():
+        if n in scene:
+            by_scene[scene[n]][s].append(n)
+    return [
+        "ฉากเดียวกันอยู่หลาย split " + "; ".join(f"{s}: {', '.join(sorted(ns))}" for s, ns in sorted(g.items()))
+        for _, g in sorted(by_scene.items()) if len(g) > 1
+    ]
+
+
+def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """คืน (splits ทั้งหมดหลังเพิ่ม, เฉพาะภาพใหม่ที่เพิ่ม, ภาพใหม่ที่ไม่ได้เพิ่ม) ภาพเดิมไม่ถูกย้าย
 
     ภาพฉากเดียวกัน (scene_ids) อยู่ split เดียวกันเสมอ ไม่งั้นภาพแทบซ้ำกันจะอยู่ทั้ง tune และ test
-    ทำให้ผลชุดทดสอบดีเกินจริง ภาพใหม่ที่ฉากมี split อยู่แล้วตาม split นั้น
+    ทำให้ผลชุดทดสอบดีเกินจริง ภาพใหม่ที่ฉากมี split อยู่แล้วตาม split นั้น ยกเว้น test_frac 0 (ล็อกชุด test แล้ว)
+    ภาพใหม่ในฉากของ test ไม่ถูกเพิ่มเลย เพราะเพิ่มเข้า test ชุดทดสอบจะโต ส่งไป tune ฉากเดียวกันจะรั่วข้ามชุด
+    ถ้าฉากใดมีภาพอยู่ทั้ง tune และ test แล้ว raise SplitConflict
     """
     images = find_images(data)
     labelled = sorted(n for n in images if label_path(data, n).exists())
     splits = load_splits(data)
     new = [n for n in labelled if n not in splits]
     scene = scene_ids({n: p for n, p in images.items() if not is_web(n)})
+    if conflicts := scene_conflicts(splits, scene):
+        raise SplitConflict("\n".join(conflicts))
 
     added: dict[str, str] = {}
+    held: list[str] = []
     by_group: dict[object, list[str]] = defaultdict(list)
     for n in new:
         if is_web(n):
@@ -271,13 +295,16 @@ def assign_splits(data: Path, test_frac: float) -> tuple[dict[str, str], dict[st
             units[scene[n]].append(n)
         for sid in sorted(units, key=lambda s: hashlib.sha1(s.encode()).hexdigest()):
             split = scene_split(sid)
+            if split == "test" and test_frac == 0:
+                held += units[sid]
+                continue
             if split is None:
                 split = "test" if n_test > 0 else "tune"
             if split == "test":
                 n_test -= len(units[sid])
             for n in units[sid]:
                 added[n] = split
-    return {**splits, **added}, added
+    return {**splits, **added}, added, sorted(held)
 
 
 def import_export(data: Path, zip_path: Path) -> tuple[list[str], list[str]]:
@@ -358,9 +385,17 @@ def main(argv=None):
         print(f"\nข้อผิดพลาด {len(rep.errors)} · คำเตือน {len(rep.warnings)}")
         return 1 if rep.errors else 0
 
-    splits, added = assign_splits(args.data, args.test_frac)
+    try:
+        splits, added, held = assign_splits(args.data, args.test_frac)
+    except SplitConflict as e:
+        for line in str(e).splitlines():
+            print(f"✗ {line}")
+        print("แก้ splits.csv เองให้ทั้งฉากอยู่ split เดียวกัน (ถ้าชุด test ล็อกแล้ว ให้เอาภาพที่ถ่ายคั่นกลางออก) แล้วรันใหม่")
+        return 1
     for name, split in sorted(added.items()):
         print(f"{split:5} {name}")
+    for name in held:
+        print(f"! {name}: ฉากเดียวกับภาพใน test ที่ล็อกแล้ว ไม่เพิ่มเข้า splits.csv (ไป tune ไม่ได้เพราะฉากจะรั่วข้ามชุด)")
     counts = Counter(splits.values())
     print(f"เพิ่ม {len(added)} ภาพ · รวม " + ", ".join(f"{s} {counts[s]}" for s in SPLITS))
     if not args.dry_run and added:

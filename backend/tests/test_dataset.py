@@ -153,6 +153,38 @@ def test_split_after_test_lock_sends_new_images_to_tune(tmp_path):
     assert all(after[f"p1_white_room_top_{k:03d}.png"] == "tune" for k in range(10, 20))
 
 
+def test_split_after_test_lock_skips_new_image_in_test_scene(tmp_path):
+    """--test-frac 0: ภาพใหม่ที่ฉากเดียวกับภาพใน test ไม่ถูกเพิ่ม (ไม่เข้า test และไม่ไป tune ให้ฉากรั่ว)"""
+    add_timed_image(tmp_path, "p1_white_room_top_001.jpg", 0)
+    dataset.write_splits(tmp_path, {"p1_white_room_top_001.jpg": "test"})
+    add_timed_image(tmp_path, "p1_white_room_top_002.jpg", 2)
+    add_timed_image(tmp_path, "p1_white_room_top_003.jpg", 60)
+
+    splits, added, held = dataset.assign_splits(tmp_path, 0)
+    assert added == {"p1_white_room_top_003.jpg": "tune"}
+    assert held == ["p1_white_room_top_002.jpg"]
+    assert "p1_white_room_top_002.jpg" not in splits
+
+    dataset.main(["--data", str(tmp_path), "split", "--test-frac", "0"])
+    assert dataset.load_splits(tmp_path) == {"p1_white_room_top_001.jpg": "test", "p1_white_room_top_003.jpg": "tune"}
+
+
+def test_split_stops_when_scene_spans_tune_and_test(tmp_path, capsys):
+    """ภาพใหม่ที่ถ่ายคั่นกลางเชื่อมฉาก test กับ tune เข้าด้วยกัน: หยุด ไม่ย้ายภาพเดิม และ check รายงานข้อผิดพลาด"""
+    add_timed_image(tmp_path, "p1_white_room_top_001.jpg", 0)
+    add_timed_image(tmp_path, "p1_white_room_top_002.jpg", 10)
+    before = {"p1_white_room_top_001.jpg": "test", "p1_white_room_top_002.jpg": "tune"}
+    dataset.write_splits(tmp_path, before)
+    add_timed_image(tmp_path, "p1_white_room_top_003.jpg", 5)
+
+    with pytest.raises(dataset.SplitConflict):
+        dataset.assign_splits(tmp_path, 0.3)
+    assert dataset.main(["--data", str(tmp_path), "split"]) == 1
+    assert "หลาย split" in capsys.readouterr().out
+    assert dataset.load_splits(tmp_path) == before
+    assert any("หลาย split" in e for e in dataset.check(tmp_path).errors)
+
+
 def test_preprocess_experiment_without_splits_exits_cleanly(tmp_path, capsys):
     assert preprocess_experiment.main(["--data", str(tmp_path), "--out", str(tmp_path / "out")]) == 1
     assert "dataset.py split" in capsys.readouterr().err
