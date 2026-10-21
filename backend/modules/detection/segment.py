@@ -1,0 +1,112 @@
+"""การแยกเหรียญออกจากพื้นหลัง (Segmentation) และการปรับแต่งสัณฐานวิทยา (Morphology)"""
+
+from __future__ import annotations
+
+import cv2
+import numpy as np
+
+
+def estimate_background_color(image: np.ndarray, border_width: int = 8) -> np.ndarray:
+    """ประเมินสีพื้นหลัง (BGR) จากพิกเซลขอบภาพทั้ง 4 ด้าน"""
+    h, w = image.shape[:2]
+    bw = max(1, min(border_width, h // 10, w // 10))
+    border_pixels = np.vstack([
+        image[:bw, :].reshape(-1, 3),
+        image[-bw:, :].reshape(-1, 3),
+        image[:, :bw].reshape(-1, 3),
+        image[:, -bw:].reshape(-1, 3),
+    ])
+    return np.median(border_pixels, axis=0)
+
+
+def fill_internal_holes(mask: np.ndarray) -> np.ndarray:
+    """เติมรูภายในวัตถุ (เช่น แสงสะท้อนสีขาว รูในเหรียญ หรือลวดลาย) ให้เป็นแผ่นตัน"""
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    filled = mask.copy()
+    if hierarchy is not None:
+        for i, h in enumerate(hierarchy[0]):
+            if h[3] != -1:
+                cv2.drawContours(filled, contours, i, 255, -1)
+    return filled
+
+
+def segment_coins_otsu(gray: np.ndarray, blur_ksize: int = 5) -> np.ndarray:
+    """แยกเหรียญด้วย Otsu Thresholding บนภาพ Grayscale พร้อมปรับตามสีพื้นหลังอัตโนมัติ"""
+    if blur_ksize > 1:
+        blurred = cv2.GaussianBlur(gray, (blur_ksize, blur_ksize), 0)
+    else:
+        blurred = gray
+
+    _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # ตรวจสอบขอบภาพ หากขอบภาพเป็นสีขาว (พื้นหลังสว่าง เช่น กระดาษขาว) ให้ invert
+    h, w = thresh.shape[:2]
+    bw = max(1, min(10, h // 20, w // 20))
+    border_pixels = np.concatenate([
+        thresh[:bw, :].flatten(),
+        thresh[-bw:, :].flatten(),
+        thresh[:, :bw].flatten(),
+        thresh[:, -bw:].flatten(),
+    ])
+    if np.mean(border_pixels) > 127:
+        thresh = cv2.bitwise_not(thresh)
+
+    return thresh
+
+
+def segment_coins(
+    image: np.ndarray,
+    gray: np.ndarray,
+    blur_ksize: int = 5,
+) -> np.ndarray:
+    """แยกเหรียญโดยผสานข้อมูลทั้ง Grayscale Contrast และ Color Difference กับสีพื้นหลัง
+
+    ช่วยให้ตรวจจับเหรียญได้ทุกชนิด แม้เป็นเหรียญทองแดงที่มีค่า Grayscale ใกล้เคียงกับพื้นหลัง
+    """
+    # 1. Grayscale Otsu
+    mask_gray = segment_coins_otsu(gray, blur_ksize=blur_ksize)
+
+    # 2. Color Difference กับสีพื้นหลัง (BGR Euclidean Distance)
+    if len(image.shape) == 3 and image.shape[2] == 3:
+        bg_bgr = estimate_background_color(image)
+        color_diff = np.linalg.norm(image.astype(float) - bg_bgr, axis=2).astype(np.uint8)
+        blurred_diff = cv2.GaussianBlur(color_diff, (blur_ksize, blur_ksize), 0)
+        _, mask_color = cv2.threshold(blurred_diff, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # ตรวจสอบขอบของ mask_color
+        h, w = mask_color.shape[:2]
+        bw = max(1, min(10, h // 20, w // 20))
+        border_pixels = np.concatenate([
+            mask_color[:bw, :].flatten(),
+            mask_color[-bw:, :].flatten(),
+            mask_color[:, :bw].flatten(),
+            mask_color[:, -bw:].flatten(),
+        ])
+        if np.mean(border_pixels) > 127:
+            mask_color = cv2.bitwise_not(mask_color)
+
+        # ผสานทั้งสองเกณฑ์เข้าด้วยกัน
+        combined = cv2.bitwise_or(mask_gray, mask_color)
+    else:
+        combined = mask_gray
+
+    return combined
+
+
+def clean_morphology(
+    mask: np.ndarray,
+    close_size: int = 9,
+    open_size: int = 3,
+) -> np.ndarray:
+    """ปรับปรุงหน้ากาก binary ด้วย Closing (ปิดรูในเหรียญ) และ Opening (ตัดจุดรบกวนภายนอก)"""
+    if close_size > 1:
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
+
+    mask = fill_internal_holes(mask)
+
+    if open_size > 1:
+        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_size, open_size))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
+
+    return mask

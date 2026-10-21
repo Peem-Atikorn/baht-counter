@@ -14,7 +14,11 @@ def test_pipeline_returns_original_coordinates():
 
 
 def test_pipeline_failure_is_reported(monkeypatch):
-    monkeypatch.setenv("COIN_USE_MOCK", "preprocess,classification")  # detection จริงยังไม่เสร็จ
+    def not_done(pre):
+        raise NotImplementedError("detection ยังไม่เสร็จ")
+
+    monkeypatch.setattr(pipeline.detection, "detect_coins", not_done)
+    monkeypatch.setenv("COIN_USE_MOCK", "preprocess,classification")  # จำลองกรณีโมดูลจริงยังไม่เสร็จ
     result, _, timings = pipeline.run(np.zeros((100, 100, 3), np.uint8))
     assert result.status == "failed"
     assert "detection" in result.reason
