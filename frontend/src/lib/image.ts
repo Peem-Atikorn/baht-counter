@@ -20,6 +20,10 @@ export function captureFrame(video: HTMLVideoElement): Promise<Blob> {
   canvas.height = video.videoHeight
   canvas.getContext('2d')!.drawImage(video, 0, 0)
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('จับภาพไม่สำเร็จ'))), 'image/jpeg', 0.95),
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('จับภาพไม่สำเร็จ'))),
+      'image/jpeg',
+      0.95,
+    ),
   )
 }

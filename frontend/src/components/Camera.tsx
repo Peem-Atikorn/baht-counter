@@ -9,8 +9,10 @@ type Props = {
 }
 
 function unavailableReason(err: unknown): string {
-  if (!window.isSecureContext) return 'เปิดกล้องในหน้าเว็บได้เฉพาะ HTTPS จึงเปิดแอปกล้องของเครื่องแทน'
-  if (err instanceof DOMException && err.name === 'NotAllowedError') return 'ไม่ได้รับอนุญาตให้ใช้กล้อง จึงเปิดแอปกล้องของเครื่องแทน'
+  if (!window.isSecureContext)
+    return 'เปิดกล้องในหน้าเว็บได้เฉพาะ HTTPS จึงเปิดแอปกล้องของเครื่องแทน'
+  if (err instanceof DOMException && err.name === 'NotAllowedError')
+    return 'ไม่ได้รับอนุญาตให้ใช้กล้อง จึงเปิดแอปกล้องของเครื่องแทน'
   if (err instanceof DOMException && err.name === 'NotFoundError') return 'ไม่พบกล้องในเครื่องนี้'
   return 'เปิดกล้องในหน้าเว็บไม่ได้ จึงเปิดแอปกล้องของเครื่องแทน'
 }
@@ -28,7 +30,10 @@ export default function Camera({ onCapture, onCancel, onUnavailable }: Props) {
       return
     }
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: facing, width: { ideal: 4096 }, height: { ideal: 4096 } }, audio: false })
+      .getUserMedia({
+        video: { facingMode: facing, width: { ideal: 4096 }, height: { ideal: 4096 } },
+        audio: false,
+      })
       .then((s) => {
         if (cancelled) return s.getTracks().forEach((t) => t.stop())
         stream = s
@@ -58,7 +63,9 @@ export default function Camera({ onCapture, onCancel, onUnavailable }: Props) {
         />
         {/* กรอบนำสายตา */}
         <div className="pointer-events-none absolute inset-8 rounded-2xl border-2 border-dashed border-white/70" />
-        <p className="absolute inset-x-0 top-4 text-center text-sm drop-shadow">ถ่ายจากด้านบน ให้เห็นเหรียญครบทุกเหรียญ</p>
+        <p className="absolute inset-x-0 top-4 text-center text-sm drop-shadow">
+          ถ่ายจากด้านบน ให้เห็นเหรียญครบทุกเหรียญ
+        </p>
       </div>
       <div className="flex items-center justify-between px-6 py-5">
         <button onClick={onCancel} className="rounded-lg px-3 py-2">
