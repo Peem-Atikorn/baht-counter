@@ -70,7 +70,9 @@ def fit_scale(diameters_px: list[float], candidates: list[list[str]]) -> ScaleFi
     for alt in options:
         if alt.cost - best.cost > AMBIGUITY_MARGIN:
             continue
-        diff = {i for i, (a, b) in enumerate(zip(best.types, alt.types)) if a != b}
+        # เปลี่ยนเป็น/จาก unknown ไม่ใช่ความไม่แน่ใจของชนิด (เช่น 10 บาทมีชนิดเดียว ขนาดคลาดเกินเกณฑ์)
+        diff = {i for i, (a, b) in enumerate(zip(best.types, alt.types))
+                if a != b and "unknown" not in (a, b)}
         if not diff:
             continue
         fit.ambiguous |= diff

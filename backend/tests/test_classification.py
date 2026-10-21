@@ -110,15 +110,40 @@ def test_user_edited_coin_kept_and_used_as_constraint():
     assert res.status == "ok"
 
 
-def test_unknown_size_coin_not_counted():
-    """เหรียญทองขนาดไม่ตรงกับ 2 บาท (เช่นเหรียญต่างประเทศ) -> unknown ไม่ใช่เดา"""
+def test_unknown_size_coin_makes_total_null():
+    """เหรียญทองขนาดไม่ตรงกับ 2 บาท (เช่นเหรียญต่างประเทศ) -> unknown ไม่ใช่เดา และยอดรวมเป็น null ไม่นับเป็น 0"""
     pre, coins = make_image(["THB_1", "THB_5", "THB_2"])
     big = coins[2].model_copy(update=dict(radius_px=coins[2].radius_px * 1.3))
     res = classify_coins(pre, coins[:2] + [big])
     assert res.coins[2].coin_type == "unknown"
     assert res.coins[2].value_baht is None
     assert res.status == "needs_confirmation"
-    assert res.total_baht == 6.0
+    assert res.total_baht is None
+    # ผู้ใช้ลบเหรียญนั้นแล้ว ยอดรวมกลับมาเป็นตัวเลข
+    assert classify_coins(pre, coins[:2]).total_baht == 6.0
+
+
+def test_unknown_change_does_not_force_anchor():
+    """10 บาท 2 เหรียญขนาดต่างกัน 8%: คำตอบต่างกันแค่ว่าเหรียญไหนเป็น unknown ไม่ควรขอ anchor"""
+    pre, coins = make_image(["THB_10", "THB_10"])
+    coins = [coins[0].model_copy(update=dict(radius_px=50.0)),
+             coins[1].model_copy(update=dict(radius_px=54.0))]
+    res = classify_coins(pre, coins)
+    assert res.scale_mm_per_px is not None
+    assert res.scale_source == "inferred"
+    assert "1 เหรียญ เพื่อให้ระบบคำนวณที่เหลือ" not in (res.reason or "")
+
+
+def test_pale_gold_ring_is_not_bimetal():
+    """ขอบ 2 บาทซีดกว่าใจกลาง (ยังเป็นสีทอง) ต้องเป็น gold ไม่ใช่ bimetal"""
+    pre, coins = make_image(["THB_2"], glare=False)
+    c = coins[0]
+    cv2.circle(pre.image, (round(c.center_xy[0]), round(c.center_xy[1])), round(c.radius_px), (90, 180, 215), -1)
+    cv2.circle(pre.image, (round(c.center_xy[0]), round(c.center_xy[1])), round(c.radius_px * 0.6), COLORS["gold"], -1)
+    f = color_groups(pre.image, coins)[0]
+    assert f.inner_label == f.ring_label == "gold"
+    assert f.inner_hsv[1] - f.ring_hsv[1] >= 35    # เดิมเงื่อนไขนี้ทำให้กลายเป็นสองสี
+    assert f.group == "gold"
 
 
 def test_old_silver_2_baht_flagged():

@@ -27,7 +27,6 @@ MIN_PIXELS = 15
 SILVER_S_MAX = 70      # ความอิ่มสีต่ำกว่านี้ = เงิน
 COPPER_H_MAX = 14      # H <= 14 หรือ >= 170 = ทองแดง (ส้มแดง)
 GOLD_H_MAX = 35        # 14 < H <= 35 = ทอง (เหลือง)
-BIMETAL_S_DIFF = 35    # ใจกลางอิ่มสีกว่าขอบอย่างน้อยเท่านี้ = สองสี
 
 
 @dataclass
@@ -88,10 +87,8 @@ def coin_color_features(hsv_image: np.ndarray, coin: Coin) -> ColorFeatures:
     ring = _median_hsv(crop, _ring_mask(d2, RING_R[0] * r, RING_R[1] * r))
     inner_label, ring_label = label_hsv(inner), label_hsv(ring)
 
-    if inner_label == "gold" and (
-        ring_label == "silver"
-        or (ring is not None and inner[1] - ring[1] >= BIMETAL_S_DIFF)
-    ):
+    # สองสีเฉพาะเมื่อขอบเป็นสีเงินจริง ขอบ 2 บาทที่ซีดเพราะแสงสะท้อนยังเป็นสีทอง
+    if inner_label == "gold" and ring_label == "silver":
         group = "bimetal"
     elif inner_label == ring_label or ring_label == "unknown":
         group = inner_label

@@ -5,6 +5,7 @@ from schemas import Coin, CountResult, PreprocessResult
 
 from .coin_specs import COIN_SPECS, GROUP_TYPES
 from .color import color_groups
+from .mock import total_baht
 from .scale import CLOSE_TYPES_MARGIN, MAX_REL_ERR, assign_at_scale, fit_scale
 
 # เหรียญสีเงินขนาดระหว่าง 1 กับ 5 บาท อาจเป็น 2 บาทสีเงินรุ่นเก่า (นอกขอบเขต)
@@ -53,9 +54,8 @@ def summarize(pre: PreprocessResult, coins: list[Coin], scale: float | None,
     """รวมยอดเงินและสถานะของทั้งภาพจากผลรายเหรียญ ใช้ซ้ำได้หลังผู้ใช้แก้ผล"""
     if not coins:
         return _failed(pre, coins, MSG_NO_COINS)
-    # ชนิดเป็น None = ยังตัดสินไม่ได้ ยอดรวมจึงยังไม่รู้ ส่วน unknown (ไม่ใช่เหรียญไทย) ไม่นับรวม
-    undecided = any(c.coin_type is None for c in coins)
-    total = None if undecided else round(sum(c.value_baht or 0.0 for c in coins), 2)
+    # มีเหรียญที่ไม่รู้มูลค่า (ยังตัดสินไม่ได้ หรือ unknown) ยอดรวมเป็น None จนกว่าผู้ใช้จะแก้หรือลบเหรียญนั้น
+    total = total_baht(coins)
     n_uncertain = sum(c.status != "ok" for c in coins)
     if need_anchor:
         status, reason = "needs_confirmation", MSG_NEED_ANCHOR
@@ -131,7 +131,7 @@ def classify_coins(pre: PreprocessResult, coins: list[Coin],
         elif i in ambiguous and need_anchor:
             upd.update(coin_type=None, value_baht=None, confidence=None,
                        status="needs_confirmation", reason=MSG_COIN_SCALE)
-        elif f.group == "silver" and OLD_2_BAHT_MM[0] <= size_mm <= OLD_2_BAHT_MM[1]:
+        elif not need_anchor and f.group == "silver" and OLD_2_BAHT_MM[0] <= size_mm <= OLD_2_BAHT_MM[1]:
             upd.update(coin_type=None, value_baht=None, confidence=None,
                        status="needs_confirmation", reason=MSG_COIN_OLD_2_BAHT)
         elif best.types[i] == "unknown":

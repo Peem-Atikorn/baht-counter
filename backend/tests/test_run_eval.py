@@ -53,6 +53,24 @@ def test_run_eval_gt_detector(tmp_path):
     assert (out / "results_gt.json").read_text(encoding="utf-8") == first
 
 
+def test_run_eval_unknown_label_not_used_as_anchor(tmp_path):
+    """เหรียญที่ป้ายกำกับเป็น unknown และระบบยังไม่ตัดสินชนิด ต้องไม่ถูกเลือกเป็น anchor (เดิมล่มด้วย ValueError)"""
+    data, out = tmp_path / "data", tmp_path / "out"
+    build_dataset(data)
+    pre, coins = make_image(["THB_1"])
+    cv2.imwrite(str(data / "raw" / "test_unknown.png"), pre.image)
+    labels = {"coins": [{"center_xy": list(coins[0].center_xy), "radius_px": coins[0].radius_px,
+                         "coin_type": "unknown"}]}
+    (data / "labels" / "test_unknown.json").write_text(json.dumps(labels), encoding="utf-8")
+    with open(data / "splits.csv", "a", encoding="utf-8") as f:
+        f.write("\ntest_unknown.png,test")
+
+    run_eval.main(["--data", str(data), "--split", "test", "--detector", "gt", "--out", str(out)])
+    res = json.loads((out / "results_gt.json").read_text(encoding="utf-8"))["splits"]["test"]
+    assert res["color+scale+1"]["confusion"]["unknown"] == {"none": 1}
+    assert res["color+scale"]["failed_pct"] == 0.0
+
+
 def test_dump_colors(tmp_path):
     data, out = tmp_path / "data", tmp_path / "out"
     build_dataset(data)

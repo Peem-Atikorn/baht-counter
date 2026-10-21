@@ -122,12 +122,12 @@ def match(gt: list[Coin], pred: list[Coin]) -> dict[int, int]:
 
 
 def simulate_anchor(pre, coins, res: CountResult, gt_types, m) -> CountResult:
-    """จำลองผู้ใช้กดเลือกชนิดเหรียญ 1 เหรียญ (เหรียญแรกที่ยังไม่มีชนิดและจับคู่กับป้ายกำกับได้)"""
+    """จำลองผู้ใช้กดเลือกชนิดเหรียญ 1 เหรียญ (เหรียญแรกที่ยังไม่มีชนิดและป้ายกำกับเป็นเหรียญไทย)"""
     if res.scale_mm_per_px is not None:
         return res
     inv = {j: i for i, j in m.items()}
     for j, c in enumerate(res.coins):
-        if c.coin_type is None and j in inv:
+        if c.coin_type is None and j in inv and gt_types[inv[j]] in COIN_SPECS:
             return classify_coins(pre, coins, anchor=(c.coin_id, gt_types[inv[j]]))
     return res
 
@@ -140,6 +140,7 @@ class Stats:
         self.exact = 0
         self.undecided = 0
         self.needs_conf = 0
+        self.failed = 0
         self.abs_err: list[float] = []
 
     def add(self, gt_types, gt_total, res: CountResult, m: dict[int, int]):
@@ -151,7 +152,8 @@ class Stats:
                 p = res.coins[m[i]].coin_type
                 self.conf[t][p if p is not None else "none"] += 1
         self.fp += len(res.coins) - len(m)
-        self.needs_conf += res.status != "ok"
+        self.needs_conf += res.status == "needs_confirmation"
+        self.failed += res.status == "failed"
         if res.total_baht is None:
             self.undecided += 1
         else:
@@ -174,6 +176,7 @@ class Stats:
             "total_mae_baht": float(np.mean(self.abs_err)) if self.abs_err else None,
             "total_undecided_pct": 100 * self.undecided / self.images if self.images else None,
             "needs_confirmation_pct": 100 * self.needs_conf / self.images if self.images else None,
+            "failed_pct": 100 * self.failed / self.images if self.images else None,
             "confusion": {t: dict(self.conf[t]) for t in GT_ROWS if t in self.conf},
         }
 
@@ -189,14 +192,15 @@ def fmt(v, pct=False):
 def report(split: str, detector: str, results: dict[str, dict]) -> str:
     lines = [f"## split: {split} (detector: {detector})", "",
              "| วิธี | ภาพ | เหรียญ | Det P | Det R | Acc รายเหรียญ | Acc (เฉพาะที่หาเจอ) "
-             "| ยอดถูกพอดี % | MAE ยอด (บาท) | ยอดระบุไม่ได้ % | ต้องยืนยัน % |",
-             "|---|---|---|---|---|---|---|---|---|---|---|"]
+             "| ยอดถูกพอดี % | MAE ยอด (บาท) | ยอดระบุไม่ได้ % | ต้องยืนยัน % | ล้มเหลว % |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for name, s in results.items():
         lines.append(
             f"| {name} | {s['images']} | {s['gt_coins']} | {fmt(s['det_precision'])} | {fmt(s['det_recall'])} "
             f"| {fmt(s['coin_accuracy'])} | {fmt(s['coin_accuracy_detected'])} "
             f"| {fmt(s['total_exact_pct'], True)} | {fmt(s['total_mae_baht'])} "
-            f"| {fmt(s['total_undecided_pct'], True)} | {fmt(s['needs_confirmation_pct'], True)} |")
+            f"| {fmt(s['total_undecided_pct'], True)} | {fmt(s['needs_confirmation_pct'], True)} "
+            f"| {fmt(s['failed_pct'], True)} |")
     for name, s in results.items():
         lines += ["", f"### confusion matrix: {name} (แถว = ป้ายกำกับ, คอลัมน์ = ผลระบบ)", "",
                   "| | " + " | ".join(PRED_COLS) + " |", "|---" * (len(PRED_COLS) + 1) + "|"]
@@ -229,11 +233,9 @@ def prepare(data: Path, image: str, preprocess, detect):
 def calibrate_baseline(data: Path, images: list[str], preprocess) -> float:
     diams, types = [], []
     for image in images:
-        labels = load_labels(data, image)
-        bgr = cv2.imread(str(find_image(data, image)), cv2.IMREAD_COLOR)
-        k = preprocess(bgr).resize_factor
-        diams += [2 * c["radius_px"] * k for c in labels]
-        types += [c["coin_type"] for c in labels]
+        _, gt, gt_types, _ = prepare(data, image, preprocess, None)
+        diams += [2 * c.radius_px for c in gt]
+        types += gt_types
     return fit_baseline_scale(diams, types)
 
 
