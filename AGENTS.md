@@ -68,4 +68,11 @@
 
 ## คำสั่งรันและเทสต์
 
-ยังไม่มี ส่วนที่ 4 / 5 จะเติมที่นี่เมื่อตั้งโปรเจกต์เสร็จ (ตัวอย่างที่คาดไว้: `pytest` ใน `backend/`, `npm run build` ใน `frontend/`, `docker compose up` ที่ root) ถ้าคุณเป็นคนตั้งโปรเจกต์ ให้อัปเดตหัวข้อนี้ใน PR เดียวกัน
+รายละเอียดการติดตั้งอยู่ใน `README.md` หัวข้อ "การติดตั้งและรัน"
+
+- Backend เทสต์: `cd backend && .venv/Scripts/python -m pytest` (macOS/Linux: `.venv/bin/python`)
+- Backend รัน: `.venv/Scripts/python -m uvicorn app.main:app --reload` (พอร์ต 8000)
+- Frontend: `cd frontend && npm run build` (ตรวจ type + build), `npm run dev` (พอร์ต 5173), `npx oxlint src`
+- โมดูลจริงที่ยังไม่เสร็จ `raise NotImplementedError` pipeline ใช้ `mock_*()` แทนตาม env `COIN_USE_MOCK` (ดู `backend/app/pipeline.py`)
+- แก้ schema ใน `backend/schemas/` แล้วต้องรัน `npm run gen:api` (ขณะ backend รันอยู่) และ commit `frontend/src/api/schema.d.ts` ด้วย
+- `docker compose up` ยังไม่มี (ส่วนที่ 4)
