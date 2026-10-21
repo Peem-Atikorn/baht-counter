@@ -67,17 +67,15 @@ baht-counter/
 
 ## การแบ่งงาน
 
-| ส่วน | งาน | Issue | Branch |
-|---|---|---|---|
-| 1 | ชุดข้อมูล การปรับปรุงภาพ และการตรวจคุณภาพภาพ | [#1](https://github.com/Peem-Atikorn/baht-counter/issues/1) | `p1/Name` |
-| 2 | หาตำแหน่งเหรียญ | [#2](https://github.com/Peem-Atikorn/baht-counter/issues/2) | `p2/Name` |
-| 3 | จำแนกชนิดเหรียญ หาสเกล และการประเมินผลรวม | [#3](https://github.com/Peem-Atikorn/baht-counter/issues/3) | `p3/Name` |
-| 4 | Backend API ฐานข้อมูล และ Deploy | [#4](https://github.com/Peem-Atikorn/baht-counter/issues/4) | `p4/Name` |
-| 5 | Frontend เว็บแอป | [#5](https://github.com/Peem-Atikorn/baht-counter/issues/5) | `p5/Name` |
+| ส่วน | งาน | ผู้รับผิดชอบ | Issue | Branch |
+|---|---|---|---|---|
+| 1 | ชุดข้อมูล การปรับปรุงภาพ และการตรวจคุณภาพภาพ | [@Peem-Atikorn](https://github.com/Peem-Atikorn) | [#1](https://github.com/Peem-Atikorn/baht-counter/issues/1) | `p1/Name` |
+| 2 | หาตำแหน่งเหรียญ | [@titleww](https://github.com/titleww) | [#2](https://github.com/Peem-Atikorn/baht-counter/issues/2) | `p2/Name` |
+| 3 | จำแนกชนิดเหรียญ หาสเกล และการประเมินผลรวม | [@wissarut-29](https://github.com/wissarut-29) | [#3](https://github.com/Peem-Atikorn/baht-counter/issues/3) | `p3/Name` |
+| 4 | Backend API ฐานข้อมูล และ Deploy | [@fffalafair](https://github.com/fffalafair) | [#4](https://github.com/Peem-Atikorn/baht-counter/issues/4) | `p4/Name` |
+| 5 | Frontend เว็บแอป | [@Notnrxth](https://github.com/Notnrxth) | [#5](https://github.com/Peem-Atikorn/baht-counter/issues/5) | `p5/Name` |
 
 `Name` คือชื่อของผู้รับผิดชอบส่วนนั้น
-
-ผู้รับผิดชอบแต่ละส่วนกด Assign ตัวเองใน issue ของส่วนนั้น
 
 ## การทำงานร่วมกัน
 
@@ -105,8 +103,8 @@ pX/Name  ──PR──▶  develop  ──PR (1 approve)──▶  main
 **1. รับคำเชิญเข้า repo**
 เปิด https://github.com/Peem-Atikorn/baht-counter/invitations แล้วกด **Accept invitation** (หรือกดจากอีเมลที่ GitHub ส่งมา)
 
-**2. รับงาน**
-เปิดแท็บ [Issues](https://github.com/Peem-Atikorn/baht-counter/issues) → กดเข้า issue ของส่วนตัวเอง → แถบขวาตรง **Assignees** กด **assign yourself**
+**2. ดูงานของตัวเอง**
+เปิด issue ของส่วนตัวเองจากตาราง [การแบ่งงาน](#การแบ่งงาน) (ผู้รับผิดชอบถูก Assign ไว้แล้ว)
 
 **3. โหลดโปรเจกต์ลงเครื่อง**
 
