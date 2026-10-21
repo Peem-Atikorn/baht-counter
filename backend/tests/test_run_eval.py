@@ -4,12 +4,21 @@ import sys
 from pathlib import Path
 
 import cv2
+import pytest
 
+from modules.preprocess import mock_preprocess
 from test_classification import make_image
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "eval"))
 import run_eval  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def use_mock_preprocess(monkeypatch):
+    """ภาพสังเคราะห์ในไฟล์นี้สูงแค่ ~230 px preprocess จริงของส่วนที่ 1 จะปฏิเสธว่าภาพเล็กเกินไป
+    เทสต์นี้ตรวจตรรกะของ run_eval ไม่ใช่คุณภาพภาพ จึงใช้ mock_preprocess (ย่อภาพอย่างเดียว)"""
+    monkeypatch.setattr(run_eval, "get_preprocess", lambda: mock_preprocess)
 
 SETS = {
     "tune": [["THB_1", "THB_5", "THB_10"], ["THB_0_25", "THB_0_50", "THB_2"]],
