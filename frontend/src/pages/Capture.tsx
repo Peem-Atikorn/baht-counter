@@ -21,11 +21,15 @@ export default function Capture() {
     const problem = validateImage(image)
     if (problem) return setError(problem)
     setError(null)
-    setPreview((old) => {
-      if (old) URL.revokeObjectURL(old.url)
-      return { image, url: URL.createObjectURL(image), from }
-    })
+    setPreview({ image, url: URL.createObjectURL(image), from })
   }, [])
+
+  // คืนหน่วยความจำของภาพพรีวิวเดิมเมื่อเปลี่ยนภาพ และเมื่อออกจากหน้านี้
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview.url)
+    }
+  }, [preview])
 
   // วางภาพจากคลิปบอร์ด (Ctrl+V)
   useEffect(() => {

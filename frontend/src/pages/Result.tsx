@@ -1,4 +1,4 @@
-// สัปดาห์ 1: แสดงยอดรวมและตารางจากผล — วงกลมบนภาพและการแก้ผลทำในสัปดาห์ 2–3
+// แสดงยอดรวมและตารางจากผล — TODO(ส่วนที่ 5): วงกลมบนภาพและการแก้ผล
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getAnalysis, getCoinTypes, imageUrl, type AnalysisResponse, type CoinTypeInfo } from '../api/client'
@@ -33,6 +33,7 @@ export default function Result() {
 
   const r = data.result
   const unresolved = r.coins.filter((c) => !c.coin_type).length
+  const notThai = r.coins.filter((c) => c.coin_type === 'unknown').length
   const rows = types
     .map((t) => ({ t, n: r.coins.filter((c) => c.coin_type === t.code).length }))
     .filter((row) => row.n > 0)
@@ -74,6 +75,13 @@ export default function Result() {
             <tr className="border-t border-slate-100 text-amber-700">
               <td className="p-3">ยังไม่ทราบชนิด</td>
               <td className="p-3 text-right">{unresolved}</td>
+              <td className="p-3 text-right">ระบุไม่ได้</td>
+            </tr>
+          )}
+          {notThai > 0 && (
+            <tr className="border-t border-slate-100 text-amber-700">
+              <td className="p-3">ไม่ใช่เหรียญไทย</td>
+              <td className="p-3 text-right">{notThai}</td>
               <td className="p-3 text-right">ระบุไม่ได้</td>
             </tr>
           )}

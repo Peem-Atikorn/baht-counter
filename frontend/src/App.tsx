@@ -11,7 +11,7 @@ export default function App() {
         <nav className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link to="/" className="font-semibold">฿ นับเหรียญ</Link>
           {USE_MOCK && <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">mock API</span>}
-          {/* TODO(ส่วนที่ 5, สัปดาห์ 4): ลิงก์ประวัติ และ เกี่ยวกับ */}
+          {/* TODO(ส่วนที่ 5): ลิงก์ประวัติ และ เกี่ยวกับ */}
         </nav>
       </header>
       <main className="mx-auto max-w-2xl px-4 py-6">
