@@ -63,3 +63,15 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 
 `COIN_USE_MOCK` (อ่านใน `pipeline.mock_stages()`): `"1"` (ค่าเริ่มต้น) = mock ทุกขั้น, `"0"` = ของจริงทุกขั้น,
 หรือรายชื่อคั่นด้วย comma เช่น `"preprocess,classification"` = ขั้นที่ไม่ได้ระบุใช้ของจริง
+
+## Env บนเซิร์ฟเวอร์ที่ deploy
+
+| env | ค่าที่ตั้งบน Render | ความหมาย |
+|---|---|---|
+| `COIN_USE_MOCK` | `detection` | preprocess + classification ใช้ของจริง detection ยัง mock |
+| `BAHT_DATA_DIR` | ไม่ตั้ง (ค่าเริ่มต้น `storage/` สัมพัทธ์ในคอนเทนเนอร์) | แผน Free ของ Render ไม่มี persistent disk ให้ผูก ตั้งเป็น path อื่นก็ไม่ช่วยให้ข้อมูลอยู่ข้าม redeploy |
+| `PORT` | ไม่ตั้ง (Render ตั้งให้เอง) | อ่านใน `CMD` ของ Dockerfile ผ่าน `${PORT:-8000}` |
+
+**ไม่มีระบบ login:** `GET /api/history`, `GET /api/analyses/{id}`, และภาพทุกภาพ (`/api/analyses/{id}/images/{name}`)
+เปิดดูได้โดยทุกคนที่รู้หรือเดา URL ได้ (`analysis_id` เป็น UUID สุ่ม เดายากแต่ไม่ได้ปิดกั้นด้วยสิทธิ์ใดๆ)
+**อย่าใช้ภาพส่วนตัวทดสอบบนเซิร์ฟเวอร์ที่ deploy จริง** ใช้ภาพเหรียญเปล่าๆจาก `data/samples/` พอ

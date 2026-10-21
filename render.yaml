@@ -1,0 +1,14 @@
+services:
+  - name: baht-counter
+    type: web
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: develop
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: COIN_USE_MOCK
+        value: detection
