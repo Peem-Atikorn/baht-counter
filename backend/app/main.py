@@ -1,8 +1,9 @@
-"""ส่วนที่ 4: FastAPI — สัปดาห์ 1 มี coin-types, อัปโหลด, ดูผล, ดูภาพ (เก็บในหน่วยความจำ)"""
+"""ส่วนที่ 4: FastAPI — coin-types, อัปโหลด, ดูผล, ดูภาพ (ตอนนี้เก็บในหน่วยความจำ)"""
 
 import io
 import logging
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass
 
 import cv2
@@ -18,7 +19,9 @@ from . import pipeline
 logging.basicConfig(level=logging.INFO)
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+MAX_PIXELS = 50_000_000  # ไฟล์เล็กแต่ความละเอียดสูงมาก (เช่น PNG สีพื้น) ใช้หน่วยความจำมหาศาลตอนถอดรหัส
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_ANALYSES = 20
 
 app = FastAPI(title="baht-counter API")
 
@@ -29,15 +32,19 @@ class Analysis:
     images: dict[str, bytes]  # ชื่อ -> PNG/JPEG bytes
 
 
-# shortcut: เก็บในหน่วยความจำ หายเมื่อรีสตาร์ท — เปลี่ยนเป็น SQLite + storage/ ในสัปดาห์ 2
-ANALYSES: dict[str, Analysis] = {}
+# shortcut: เก็บในหน่วยความจำแค่ MAX_ANALYSES ผลล่าสุด หายเมื่อรีสตาร์ท — เปลี่ยนเป็น SQLite + storage/ (ส่วนที่ 4)
+ANALYSES: OrderedDict[str, Analysis] = OrderedDict()
 
 
 def decode_image(data: bytes) -> np.ndarray:
     """อ่านไฟล์ หมุนตาม EXIF orientation แล้วคืนภาพ BGR"""
     try:
         img = Image.open(io.BytesIO(data))
+        if img.width * img.height > MAX_PIXELS:
+            raise HTTPException(413, "ภาพมีความละเอียดสูงเกินไป กรุณาใช้ภาพไม่เกิน 50 ล้านพิกเซล")
         img = ImageOps.exif_transpose(img).convert("RGB")
+    except Image.DecompressionBombError:
+        raise HTTPException(413, "ภาพมีความละเอียดสูงเกินไป กรุณาใช้ภาพไม่เกิน 50 ล้านพิกเซล")
     except (UnidentifiedImageError, OSError):
         raise HTTPException(400, "อ่านไฟล์ภาพไม่ได้ กรุณาใช้ไฟล์ JPEG, PNG หรือ WebP")
     return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
@@ -53,11 +60,12 @@ def coin_types():
     return COIN_TYPES
 
 
+# def ธรรมดา (ไม่ใช่ async) FastAPI จะรันใน threadpool งานประมวลผลภาพจึงไม่บล็อก request อื่น
 @app.post("/api/analyses", response_model=AnalysisResponse)
-async def create_analysis(file: UploadFile):
+def create_analysis(file: UploadFile):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(415, "รองรับเฉพาะไฟล์ JPEG, PNG หรือ WebP")
-    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "ไฟล์ใหญ่เกิน 15 MB")
 
@@ -71,6 +79,8 @@ async def create_analysis(file: UploadFile):
     })
     response = AnalysisResponse(analysis_id=analysis_id, result=result)
     ANALYSES[analysis_id] = Analysis(response=response, images=images)
+    while len(ANALYSES) > MAX_ANALYSES:
+        ANALYSES.popitem(last=False)
     return response
 
 

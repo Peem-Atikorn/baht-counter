@@ -21,7 +21,11 @@ def mock_stages() -> set[str]:
         return set(STAGES)
     if raw in ("", "0"):
         return set()
-    return {s.strip() for s in raw.split(",")}
+    names = {s.strip() for s in raw.split(",") if s.strip()}
+    unknown = names - set(STAGES)
+    if unknown:
+        raise ValueError(f"COIN_USE_MOCK มีชื่อที่ไม่รู้จัก {sorted(unknown)} ใช้ได้เฉพาะ {list(STAGES)}")
+    return names
 
 
 def _failed(size: tuple[int, int], reason: str) -> CountResult:
@@ -46,6 +50,7 @@ def run(image: np.ndarray, anchor: tuple[int, str] | None = None) -> tuple[Count
 
     h, w = image.shape[:2]
     timings: dict[str, float] = {}
+    stage = "preprocess"
     t0 = time.perf_counter()
     try:
         pre = pre_fn(image)
@@ -53,17 +58,27 @@ def run(image: np.ndarray, anchor: tuple[int, str] | None = None) -> tuple[Count
         if pre.status == "failed":
             return _failed((w, h), pre.reason or "ภาพนี้ใช้ไม่ได้"), pre.debug_images
 
+        stage = "detection"
         t1 = time.perf_counter()
         coins = det_fn(pre)
         timings["detection"] = time.perf_counter() - t1
         if not coins:
             return _failed((w, h), "ไม่พบเหรียญในภาพ"), pre.debug_images
 
+        stage = "classification"
         t2 = time.perf_counter()
         result = cls_fn(pre, coins, anchor)
         timings["classification"] = time.perf_counter() - t2
+    except ValueError:
+        if anchor is not None:
+            raise  # anchor ไม่ถูกต้อง (coin_id ไม่มี / coin_type ผิด) ให้ route ตอบ 400
+        log.exception("pipeline failed at %s", stage)
+        return _failed((w, h), "ระบบประมวลผลภาพผิดพลาด กรุณาลองใหม่อีกครั้ง"), {}
+    except NotImplementedError:
+        log.error("โมดูล %s ยังไม่เสร็จ ตั้ง COIN_USE_MOCK ให้ใช้ mock ของขั้นนี้", stage)
+        return _failed((w, h), f"ระบบยังไม่พร้อม: ขั้น {stage} ยังไม่เสร็จ"), {}
     except Exception:
-        log.exception("pipeline failed")
+        log.exception("pipeline failed at %s", stage)
         return _failed((w, h), "ระบบประมวลผลภาพผิดพลาด กรุณาลองใหม่อีกครั้ง"), {}
     finally:
         log.info("timings %s mocks=%s", {k: round(v, 3) for k, v in timings.items()}, sorted(mocks))

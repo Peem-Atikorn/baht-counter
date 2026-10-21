@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from fastapi.testclient import TestClient
 
+from app import main
 from app.main import app
 
 client = TestClient(app)
@@ -61,3 +62,17 @@ def test_rejects_too_large():
 
 def test_unknown_analysis_404():
     assert client.get("/api/analyses/does-not-exist").status_code == 404
+
+
+def test_rejects_too_many_pixels(monkeypatch):
+    monkeypatch.setattr(main, "MAX_PIXELS", 800 * 600 - 1)
+    r = upload(png_bytes(800, 600))
+    assert r.status_code == 413
+    assert "ความละเอียดสูงเกินไป" in r.json()["detail"]
+
+
+def test_keeps_only_recent_analyses(monkeypatch):
+    monkeypatch.setattr(main, "MAX_ANALYSES", 2)
+    ids = [upload(png_bytes(80, 60)).json()["analysis_id"] for _ in range(3)]
+    assert client.get(f"/api/analyses/{ids[0]}").status_code == 404
+    assert all(client.get(f"/api/analyses/{i}").status_code == 200 for i in ids[1:])
