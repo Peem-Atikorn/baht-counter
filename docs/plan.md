@@ -297,11 +297,11 @@ def classify_coins(pre: PreprocessResult, coins: list[Coin],
 **เป้าหมาย:** รับภาพ เรียกโมดูลตามลำดับ เก็บผล และให้หน้าเว็บแก้ผลได้
 
 **งานหลัก**
-- [ ] ตั้งโปรเจกต์ FastAPI, Pydantic schema กลาง, SQLite, โฟลเดอร์ `storage/`
-- [ ] `pipeline.py`: preprocess → detect → classify พร้อมจัดการสถานะล้มเหลวทุกขั้น, สลับโมดูลจริงกับ mock ได้ด้วย config
-- [ ] ตรวจไฟล์ที่อัปโหลด: ชนิดไฟล์ ขนาดไม่เกินกำหนด
-- [ ] บันทึก log: เวลาแต่ละขั้น, จำนวนครั้งที่ผู้ใช้แก้ผล (ใช้เป็นตัวชี้วัดในรายงาน)
-- [ ] Export ป้ายกำกับจากผลที่ผู้ใช้แก้แล้ว เพื่อใช้หน้าเว็บเป็นเครื่องมือทำป้ายกำกับ
+- [x] ตั้งโปรเจกต์ FastAPI, Pydantic schema กลาง, SQLite, โฟลเดอร์ `storage/`
+- [x] `pipeline.py`: preprocess → detect → classify พร้อมจัดการสถานะล้มเหลวทุกขั้น, สลับโมดูลจริงกับ mock ได้ด้วย config
+- [x] ตรวจไฟล์ที่อัปโหลด: ชนิดไฟล์ ขนาดไม่เกินกำหนด
+- [x] บันทึก log: เวลาแต่ละขั้น, จำนวนครั้งที่ผู้ใช้แก้ผล (ใช้เป็นตัวชี้วัดในรายงาน)
+- [x] Export ป้ายกำกับจากผลที่ผู้ใช้แก้แล้ว เพื่อใช้หน้าเว็บเป็นเครื่องมือทำป้ายกำกับ
 - [x] Dockerfile และ `docker-compose.yml`
 - [x] Deploy ขึ้น Render free tier (มี HTTPS): Web Service เดียวจาก `Dockerfile` ที่ root, region Singapore, deploy อัตโนมัติเมื่อมี commit เข้า `develop`, `PORT` ไม่ต้องตั้ง (Render ส่งมาเอง), env `COIN_USE_MOCK=0` (โมดูลจริงครบทั้ง 3 ขั้นแล้ว), health check `/api/health`
 
