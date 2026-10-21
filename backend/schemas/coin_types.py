@@ -2,6 +2,7 @@
 
 from .models import CoinTypeInfo
 
+# frontend/src/api/mock.ts มีสำเนาตารางนี้ — เมื่อแก้ข้อมูล ต้องปรับฝั่ง frontend ด้วย
 COIN_TYPES: list[CoinTypeInfo] = [
     CoinTypeInfo(code="THB_0_25", name_th="25 สตางค์", value_baht=0.25, diameter_mm=16.0, color_group="copper", display_color="#b45309"),
     CoinTypeInfo(code="THB_0_50", name_th="50 สตางค์", value_baht=0.50, diameter_mm=18.0, color_group="copper", display_color="#ea580c"),
