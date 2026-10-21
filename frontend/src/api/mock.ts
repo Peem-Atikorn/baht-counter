@@ -8,6 +8,7 @@ import type {
   ExportFormat,
 } from './client'
 
+// สำเนาของ backend/schemas/coin_types.py — เมื่อแก้ข้อมูลที่นั่น ต้องปรับตารางนี้ด้วย
 const COIN_TYPES: CoinTypeInfo[] = [
   {
     code: 'THB_0_25',
