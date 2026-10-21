@@ -25,6 +25,8 @@ npm run dev
 ตรวจโค้ด: `npm run build`, `npm run lint`, `npm test` และ `npm run format:check`
 จัดรูปแบบโค้ด: `npm run format`
 
+ไฟล์ใน `frontend/` ใช้ LF โดยกำหนดผ่าน `.gitattributes` ของโฟลเดอร์นี้ เพื่อให้ checkout และตรวจรูปแบบได้เหมือนกันบน Windows และระบบอื่น หากมีไฟล์ CRLF ค้างจาก checkout เก่า ให้รัน `npm run format` ก่อนตรวจรูปแบบ
+
 ## หน้าที่มี
 
 - `/`: แดชบอร์ดสีครีม/ส้มอิฐ การ์ดเริ่มนับ และข้อมูลเหรียญ 6 ชนิด

@@ -3,7 +3,7 @@
   "semi": false,
   "trailingComma": "all",
   "printWidth": 100,
-  "endOfLine": "auto",
+  "endOfLine": "lf",
   "overrides": [
     {
       "files": "*.svg",
