@@ -36,7 +36,7 @@ def add_labelled(data: Path, name: str, coins, split="tune"):
 
 def test_paste_coins_uses_base_scale_and_free_space():
     base_coins = [{"center_xy": [100, 100], "radius_px": 40, "coin_type": "THB_1"},      # 20 มม. -> 0.25 มม./px
-                  {"center_xy": [250, 100], "radius_px": 52, "coin_type": "THB_10"}]
+                  {"center_xy": [250, 100], "radius_px": synth_coins.DIAMETER_MM["THB_10"] * 2, "coin_type": "THB_10"}]  # 0.25 มม./px เท่ากัน
     base = coin_image(base_coins)
     src_coins = [{"center_xy": [300, 300], "radius_px": 60, "coin_type": "THB_2"}]
     cut = synth_coins.cut_coin(coin_image(src_coins), (300, 300), 60, "src.jpg", 0)

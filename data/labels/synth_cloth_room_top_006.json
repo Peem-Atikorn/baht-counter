@@ -31,10 +31,10 @@
     },
     {
       "center_xy": [
-        2037.3,
-        896.5
+        2034.2,
+        901.1
       ],
-      "radius_px": 288.0,
+      "radius_px": 292.5,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_cloth_room_top_030.jpg",

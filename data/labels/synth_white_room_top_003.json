@@ -31,10 +31,10 @@
     },
     {
       "center_xy": [
-        3208.1,
-        710.0
+        3203.0,
+        717.1
       ],
-      "radius_px": 345.3,
+      "radius_px": 350.7,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_056.jpg",
@@ -45,10 +45,10 @@
     },
     {
       "center_xy": [
-        3363.4,
-        2297.0
+        3357.5,
+        2298.9
       ],
-      "radius_px": 345.3,
+      "radius_px": 350.7,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_056.jpg",
@@ -59,10 +59,10 @@
     },
     {
       "center_xy": [
-        2105.0,
-        4461.0
+        2105.1,
+        4455.7
       ],
-      "radius_px": 345.3,
+      "radius_px": 350.7,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_056.jpg",
@@ -73,10 +73,10 @@
     },
     {
       "center_xy": [
-        570.7,
-        3870.1
+        578.2,
+        3866.7
       ],
-      "radius_px": 345.3,
+      "radius_px": 350.7,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_056.jpg",

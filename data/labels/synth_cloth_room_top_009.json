@@ -31,10 +31,10 @@
     },
     {
       "center_xy": [
-        2490.4,
-        561.1
+        2484.6,
+        567.1
       ],
-      "radius_px": 288.0,
+      "radius_px": 292.5,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_cloth_room_top_031.jpg",
@@ -45,10 +45,10 @@
     },
     {
       "center_xy": [
-        1925.5,
-        950.4
+        1923.0,
+        954.7
       ],
-      "radius_px": 288.0,
+      "radius_px": 292.5,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_cloth_room_top_009.jpg",

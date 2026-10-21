@@ -31,10 +31,10 @@
     },
     {
       "center_xy": [
-        652.4,
-        1560.0
+        652.8,
+        1559.6
       ],
-      "radius_px": 182.4,
+      "radius_px": 182.8,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_056.jpg",
@@ -46,9 +46,9 @@
     {
       "center_xy": [
         1436.0,
-        550.8
+        551.2
       ],
-      "radius_px": 182.4,
+      "radius_px": 182.8,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_055.jpg",
@@ -59,10 +59,10 @@
     },
     {
       "center_xy": [
-        1768.8,
-        347.6
+        1768.6,
+        348.2
       ],
-      "radius_px": 182.4,
+      "radius_px": 182.8,
       "coin_type": "THB_2",
       "synthetic": {
         "source": "p1_white_room_top_055.jpg",
