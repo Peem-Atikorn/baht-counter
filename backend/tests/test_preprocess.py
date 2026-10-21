@@ -8,11 +8,11 @@ from modules import preprocess as pp
 H, W = 1200, 1600
 
 
-def coin_photo(bg: int = 225, seed: int = 0) -> np.ndarray:
-    """ภาพสังเคราะห์: เหรียญ 12 เหรียญ (เงิน/ทอง/ทองแดง) บนพื้นสีเรียบ พร้อมจุดรบกวนเล็กน้อย"""
+def coin_photo(bg: int = 225, seed: int = 0, n: int = 12) -> np.ndarray:
+    """ภาพสังเคราะห์: เหรียญ n เหรียญ (เงิน/ทอง/ทองแดง) บนพื้นสีเรียบ พร้อมจุดรบกวนเล็กน้อย"""
     rng = np.random.default_rng(seed)
     img = np.full((H, W, 3), bg, np.uint8)
-    for i in range(12):
+    for i in range(n):
         c = (int(rng.integers(150, W - 150)), int(rng.integers(150, H - 150)))
         r = int(rng.integers(55, 85))
         color = [(190, 190, 195), (60, 170, 215), (60, 110, 190)][i % 3]
@@ -51,6 +51,23 @@ def test_bad_photo_is_rejected_with_thai_reason(make_bad, message):
     result = pp.preprocess(make_bad(coin_photo()))
     assert result.status == "failed"
     assert result.reason == message
+
+
+def test_single_coin_on_white_paper_is_not_flat():
+    """เหรียญเดียวบนกระดาษขาว ขอบมีไม่ถึง 2% ของภาพ แต่ไม่ใช่ภาพพื้นเรียบ (ภาพ white_room_top_053–056)"""
+    result = pp.preprocess(coin_photo(n=1))
+    assert result.status == "ok", result.reason
+
+
+def test_blank_paper_with_camera_noise_is_flat():
+    """กระดาษเปล่าที่มีจุดรบกวนจากกล้องและแสงไม่สม่ำเสมอ ยังต้องถูกปฏิเสธว่าไม่มีรายละเอียด"""
+    rng = np.random.default_rng(0)
+    yy, xx = np.mgrid[0:H, 0:W]
+    shading = 215 + 20 * np.cos(np.hypot(yy - H / 2, xx - W / 2) / W * np.pi)
+    paper = shading[..., None] + rng.normal(0, 4, (H, W, 3))
+    result = pp.preprocess(paper.clip(0, 255).astype(np.uint8))
+    assert result.status == "failed"
+    assert result.reason == pp.MSG_FLAT
 
 
 def test_resizes_long_side_and_keeps_colors():

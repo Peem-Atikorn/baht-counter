@@ -28,8 +28,13 @@ DARK_P99_MAX = 80
 CLIPPED_LEVEL = 250
 CLIPPED_FRACTION_MAX = 0.6
 
-# ไม่มีรายละเอียด: ขอบที่ชัดที่สุดของภาพยังอ่อนมาก (ภาพพื้นเรียบ ไม่มีเหรียญ หรือเลนส์ถูกบัง)
-FLAT_EDGE_MAX = 15
+# ไม่มีรายละเอียด: พิกเซลที่เป็นขอบแรง (Sobel >= FLAT_EDGE_LEVEL) มีน้อยกว่าสัดส่วนนี้ของภาพ
+# (ภาพพื้นเรียบ ไม่มีเหรียญ หรือเลนส์ถูกบัง)
+# - นับจำนวนพิกเซลแทนเปอร์เซ็นไทล์ 98 เพราะเหรียญเดียวบนกระดาษขาวมีขอบไม่ถึง 2% ของภาพ
+#   เปอร์เซ็นไทล์ 98 จึงตกไปอยู่ที่พื้นกระดาษ ภาพเหรียญเดี่ยวได้ค่า 13–14 ต่ำกว่ากระดาษเปล่า (14–17)
+# ชุด tune (ภาพ 1600 px): ภาพมีเหรียญ ≥ 0.32% (เหรียญเดียว 6,094 px), กระดาษเปล่าจริง ≤ 0.007% (132 px)
+FLAT_EDGE_LEVEL = 60
+FLAT_EDGE_MIN_FRACTION = 0.0005
 
 # เบลอ: วัดความแปรปรวนของอนุพันธ์อันดับสอง (แบบ Laplacian) เฉพาะบริเวณขอบ (EDGE_PERCENTILE ขึ้นไป)
 # - วัดทั้งภาพไม่ได้ เพราะพื้นหลังเรียบกินพื้นที่ส่วนใหญ่ ทำให้ภาพคมก็ได้ค่าต่ำ
@@ -58,7 +63,7 @@ class ImageQuality:
     short_side: int
     brightness_p99: float      # ความสว่างของส่วนที่สว่างที่สุด (0–255)
     clipped_fraction: float    # สัดส่วนพิกเซลที่ขาวจนอิ่มตัว
-    edge_strength: float       # ความแรงขอบที่เปอร์เซ็นไทล์ EDGE_PERCENTILE
+    strong_edge_fraction: float  # สัดส่วนพิกเซลที่ขอบแรง >= FLAT_EDGE_LEVEL
     sharpness: float           # min(var d²/dx², var d²/dy²) บริเวณขอบ
 
 
@@ -76,7 +81,7 @@ def image_quality(gray: np.ndarray) -> ImageQuality:
         short_side=min(gray.shape[:2]),
         brightness_p99=float(np.percentile(gray, 99)),
         clipped_fraction=float(np.mean(gray >= CLIPPED_LEVEL)),
-        edge_strength=edge_strength,
+        strong_edge_fraction=float(np.mean(magnitude >= FLAT_EDGE_LEVEL)),
         sharpness=sharpness,
     )
 
@@ -89,7 +94,7 @@ def quality_problem(q: ImageQuality) -> str | None:
         return MSG_TOO_DARK
     if q.clipped_fraction > CLIPPED_FRACTION_MAX:
         return MSG_TOO_BRIGHT
-    if q.edge_strength < FLAT_EDGE_MAX:
+    if q.strong_edge_fraction < FLAT_EDGE_MIN_FRACTION:
         return MSG_FLAT
     if q.sharpness < SHARPNESS_MIN:
         return MSG_BLURRY
