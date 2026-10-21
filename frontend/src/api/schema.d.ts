@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_api_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/coin-types": {
         parameters: {
             query?: never;
@@ -72,6 +89,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analyses/{analysis_id}/coins/{coin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Coin */
+        put: operations["update_coin_api_analyses__analysis_id__coins__coin_id__put"];
+        post?: never;
+        /** Delete Coin */
+        delete: operations["delete_coin_api_analyses__analysis_id__coins__coin_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analyses/{analysis_id}/coins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Coin */
+        post: operations["add_coin_api_analyses__analysis_id__coins_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["history_api_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analyses/{analysis_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Analysis */
+        get: operations["export_analysis_api_analyses__analysis_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/labels/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Labels
+         * @description รวมผลที่ผู้ใช้แก้แล้วทั้งหมดเป็นไฟล์ป้ายกำกับ + ภาพต้นฉบับทีละภาพ (รูปแบบตาม docs/labels.md) ใน zip เดียว
+         *
+         *     ตั้งชื่อไฟล์ด้วย analysis_id (ไม่ใช่ชื่อไฟล์ที่ผู้ใช้อัปโหลด) เพราะกล้องในหน้าเว็บส่งชื่อ `capture.jpg`
+         *     ซ้ำกันทุกภาพ ชื่อเดิมเก็บไว้ที่ `source_filename` แทน (ฟิลด์เพิ่มจาก docs/labels.md ของส่วนที่ 1)
+         */
+        get: operations["export_labels_api_labels_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Stats */
+        get: operations["get_stats_api_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -131,6 +257,14 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** CoinCreate */
+        CoinCreate: {
+            /** Xy */
+            xy: [
+                number,
+                number
+            ];
+        };
         /** CoinTypeInfo */
         CoinTypeInfo: {
             /**
@@ -152,11 +286,19 @@ export interface components {
             /** Display Color */
             display_color: string;
         };
+        /** CoinUpdate */
+        CoinUpdate: {
+            /**
+             * Coin Type
+             * @enum {string}
+             */
+            coin_type: "THB_0_25" | "THB_0_50" | "THB_1" | "THB_2" | "THB_5" | "THB_10" | "unknown";
+        };
         /** CountResult */
         CountResult: {
             /**
              * Schema Version
-             * @default 0.1.0
+             * @default 0.2.0
              */
             schema_version: string;
             /** Image Size */
@@ -192,6 +334,47 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HealthResponse */
+        HealthResponse: {
+            /** Status */
+            status: string;
+        };
+        /** HistoryItem */
+        HistoryItem: {
+            /** Analysis Id */
+            analysis_id: string;
+            /** Created At */
+            created_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "needs_confirmation" | "failed";
+            /** Total Baht */
+            total_baht: number | null;
+            /** Coin Count */
+            coin_count: number;
+        };
+        /** HistoryPage */
+        HistoryPage: {
+            /** Items */
+            items: components["schemas"]["HistoryItem"][];
+            /** Total */
+            total: number;
+        };
+        /** StatsResponse */
+        StatsResponse: {
+            /** Analyses Count */
+            analyses_count: number;
+            /** Avg Timings Sec */
+            avg_timings_sec: {
+                [key: string]: number;
+            };
+            /** Total Edits */
+            total_edits: number;
+            /** Edits Per Analysis Avg */
+            edits_per_analysis_avg: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -214,6 +397,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
     coin_types_api_coin_types_get: {
         parameters: {
             query?: never;
@@ -248,7 +451,7 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -326,6 +529,214 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_coin_api_analyses__analysis_id__coins__coin_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+                coin_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoinUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_coin_api_analyses__analysis_id__coins__coin_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+                coin_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_coin_api_analyses__analysis_id__coins_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoinCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_api_history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_analysis_api_analyses__analysis_id__export_get: {
+        parameters: {
+            query?: {
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_labels_api_labels_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_stats_api_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsResponse"];
                 };
             };
         };
