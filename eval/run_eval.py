@@ -306,7 +306,8 @@ def main(argv=None):
             m = match(gt, coins)
             res_b = classify_coins_baseline(pre, coins, base_scale)
             res_c = classify_coins(pre, coins)
-            res_t = classify_coins(pre, coins, templates=templates)
+            # template ใช้เฉพาะตอนสเกลไม่ชัด ถ้าได้สเกลแล้วผลเหมือนเดิม ไม่ต้องจำแนกซ้ำ
+            res_t = res_c if res_c.scale_mm_per_px is not None else classify_coins(pre, coins, templates=templates)
             res_a = simulate_anchor(pre, coins, res_c, gt_types, m)
             stats["baseline"].add(gt_types, gt_total, res_b, m)
             stats["color+scale"].add(gt_types, gt_total, res_c, m)
