@@ -80,6 +80,36 @@ def test_run_eval_unknown_label_not_used_as_anchor(tmp_path):
     assert res["color+scale"]["failed_pct"] == 0.0
 
 
+def test_run_eval_template_method(tmp_path):
+    """template จากชุด tune ทำให้ภาพ 5 บาทล้วนขนาดเดียวได้ยอดถูกโดยไม่ต้องถามผู้ใช้"""
+    from test_classification_template import make_faces
+
+    data, out = tmp_path / "data", tmp_path / "out"
+    (data / "raw").mkdir(parents=True)
+    (data / "labels").mkdir()
+    sets = {
+        "tune_0": ("tune", [("THB_1", 55, 0, None), ("THB_5", 66, 40, None)]),
+        "test_0": ("test", [("THB_5", 50, 10, None), ("THB_5", 50, 130, None), ("THB_5", 50, 250, None)]),
+    }
+    rows = ["image,split"]
+    for k, (name, (split, specs)) in enumerate(sets.items()):
+        pre, coins = make_faces(specs, seed=k)
+        cv2.imwrite(str(data / "raw" / f"{name}.png"), pre.image)
+        labels = {"coins": [{"center_xy": list(c.center_xy), "radius_px": c.radius_px, "coin_type": s[0]}
+                            for c, s in zip(coins, specs)]}
+        (data / "labels" / f"{name}.json").write_text(json.dumps(labels), encoding="utf-8")
+        rows.append(f"{name}.png,{split}")
+    (data / "splits.csv").write_text("\n".join(rows), encoding="utf-8")
+
+    run_eval.main(["--data", str(data), "--split", "test", "--detector", "gt", "--out", str(out)])
+    res = json.loads((out / "results_gt.json").read_text(encoding="utf-8"))
+    assert res["templates"] == {"THB_1": 1, "THB_5": 1}
+    test = res["splits"]["test"]
+    assert test["color+scale"]["total_undecided_pct"] == 100.0
+    assert test["color+scale+template"]["total_exact_pct"] == 100.0
+    assert test["color+scale+template"]["coin_accuracy"] == 1.0
+
+
 def test_dump_colors(tmp_path):
     data, out = tmp_path / "data", tmp_path / "out"
     build_dataset(data)

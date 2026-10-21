@@ -14,7 +14,9 @@
 วิธีที่เปรียบเทียบ
     baseline        สเกลคงที่ค่าเดียว (หาจากชุด tune) เลือกชนิดตามขนาด ไม่ใช้สี
     color+scale     กลุ่มสี + หาสเกลต่อภาพ (วิธีหลัก)
-    color+scale+1   เหมือนข้างบน แต่ถ้าระบบขอ anchor จำลองว่าผู้ใช้กดเลือกชนิดเหรียญ 1 เหรียญ
+    color+scale+template  เหมือนข้างบน แต่ถ้าสเกลไม่ชัด ใช้ template matching ลวดลาย (template จากชุด tune)
+                    หาเหรียญอ้างอิงเองก่อนถามผู้ใช้
+    color+scale+1   เหมือน color+scale แต่ถ้าระบบขอ anchor จำลองว่าผู้ใช้กดเลือกชนิดเหรียญ 1 เหรียญ
 
 ผลซ้ำได้ทุกครั้ง (เรียงภาพตามชื่อ ไม่มีการสุ่ม) เขียนไว้ที่ eval/results/
 """
@@ -34,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from modules.classification import (  # noqa: E402
-    COIN_CODES, COIN_SPECS, classify_coins, classify_coins_baseline, fit_baseline_scale,
+    COIN_CODES, COIN_SPECS, build_templates, classify_coins, classify_coins_baseline, fit_baseline_scale,
 )
 from modules.classification.color import color_groups  # noqa: E402
 from schemas import Coin, CountResult, PreprocessResult  # noqa: E402
@@ -230,13 +232,16 @@ def prepare(data: Path, image: str, preprocess, detect):
     return pre, gt, gt_types, coins
 
 
-def calibrate_baseline(data: Path, images: list[str], preprocess) -> float:
-    diams, types = [], []
+def learn_from_tune(data: Path, images: list[str], preprocess):
+    """จากชุดปรับระบบเท่านั้น: สเกลคงที่ของวิธีพื้นฐาน และ template ลวดลายของแต่ละชนิด"""
+    diams, types, samples = [], [], []
     for image in images:
-        _, gt, gt_types, _ = prepare(data, image, preprocess, None)
+        pre, gt, gt_types, _ = prepare(data, image, preprocess, None)
         diams += [2 * c.radius_px for c in gt]
         types += gt_types
-    return fit_baseline_scale(diams, types)
+        if pre.status != "failed":
+            samples += [(pre.gray, c, t) for c, t in zip(gt, gt_types) if t in COIN_SPECS]
+    return fit_baseline_scale(diams, types), build_templates(samples)
 
 
 def dump_colors(data: Path, images: list[str], preprocess, out: Path):
@@ -278,28 +283,35 @@ def main(argv=None):
     detect = get_detector(args.detector)
     if not splits.get(args.tune_split):
         sys.exit(f"ไม่มีภาพใน split '{args.tune_split}' สำหรับหาสเกลของวิธีพื้นฐาน")
-    base_scale = calibrate_baseline(args.data, splits[args.tune_split], preprocess)
+    base_scale, templates = learn_from_tune(args.data, splits[args.tune_split], preprocess)
+    n_templates = {k: len(v) for k, v in sorted(templates.items())}
     print(f"สเกลคงที่ของวิธีพื้นฐาน: {base_scale:.5f} มม./พิกเซล")
+    print(f"template ลวดลายจากชุด {args.tune_split}: {n_templates}")
 
     args.out.mkdir(parents=True, exist_ok=True)
-    all_results = {"baseline_mm_per_px": base_scale, "detector": args.detector, "splits": {}}
+    all_results = {"baseline_mm_per_px": base_scale, "templates": n_templates,
+                   "detector": args.detector, "splits": {}}
     md = [f"# ผลประเมิน (detector: {args.detector})", "",
-          f"วิธีพื้นฐานใช้สเกลคงที่ {base_scale:.5f} มม./พิกเซล จากชุด {args.tune_split}", ""]
+          f"วิธีพื้นฐานใช้สเกลคงที่ {base_scale:.5f} มม./พิกเซล จากชุด {args.tune_split}",
+          f"template ลวดลายจากชุด {args.tune_split}: {n_templates}", ""]
     for split in args.split:
         images = splits.get(split, [])
         if not images:
             print(f"! split '{split}' ไม่มีภาพ ข้าม", file=sys.stderr)
             continue
-        stats = {"baseline": Stats(), "color+scale": Stats(), "color+scale+1": Stats()}
+        stats = {k: Stats() for k in ("baseline", "color+scale", "color+scale+template", "color+scale+1")}
         for image in images:
             pre, gt, gt_types, coins = prepare(args.data, image, preprocess, detect)
             gt_total = sum(COIN_SPECS[t].value_baht for t in gt_types if t in COIN_SPECS)
             m = match(gt, coins)
             res_b = classify_coins_baseline(pre, coins, base_scale)
             res_c = classify_coins(pre, coins)
+            # template ใช้เฉพาะตอนสเกลไม่ชัด ถ้าได้สเกลแล้วผลเหมือนเดิม ไม่ต้องจำแนกซ้ำ
+            res_t = res_c if res_c.scale_mm_per_px is not None else classify_coins(pre, coins, templates=templates)
             res_a = simulate_anchor(pre, coins, res_c, gt_types, m)
             stats["baseline"].add(gt_types, gt_total, res_b, m)
             stats["color+scale"].add(gt_types, gt_total, res_c, m)
+            stats["color+scale+template"].add(gt_types, gt_total, res_t, m)
             stats["color+scale+1"].add(gt_types, gt_total, res_a, m)
         summ = {k: v.summary() for k, v in stats.items()}
         all_results["splits"][split] = summ
