@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 
 from modules.classification import build_templates, classify_coins, match_scores
-from modules.classification.template import _ncc_max, coin_features, decide
+from modules.classification.template import _ncc_max, _ncc_spec, _orientations, _spectrum, coin_feature, decide
 from schemas import Coin, PreprocessResult
 
 SILVER = (175, 178, 182)
@@ -86,8 +86,21 @@ def test_templates_resolve_ambiguous_scale():
     assert res.scale_source == "inferred"                     # ระบบประเมินเอง ไม่ใช่ผู้ใช้เลือก
     assert all(c.source == "estimated" for c in res.coins)
     # เป็นแค่การเดาจากลวดลาย ยังให้ผู้ใช้ยืนยัน
-    assert res.status == "needs_confirmation" and "ลวดลาย" in res.reason
+    assert res.status == "needs_confirmation" and "ลวดลาย" in res.reason and "(3 เหรียญ)" in res.reason
     assert all(c.status == "needs_confirmation" and c.confidence <= 0.5 for c in res.coins)
+
+
+def test_template_confidence_follows_margin(monkeypatch):
+    """confidence ของเหรียญที่เดาจากลวดลายขึ้นกับ margin: margin เพิ่งผ่านเกณฑ์ -> ต่ำ, margin กว้าง -> 0.5"""
+    from modules.classification import classify as cl
+    pre, coins = make_faces([("THB_5", 50, 10, None), ("THB_5", 50, 130, None)], seed=3)
+    confs = {}
+    for margin in (cl.TEMPLATE_MIN_MARGIN * 1.25, cl.TEMPLATE_MIN_MARGIN * 3):
+        monkeypatch.setattr(cl, "decide", lambda scores, m=margin: ("THB_5", m))
+        res = cl.classify_coins(pre, coins, templates=make_templates())
+        confs[margin] = max(c.confidence for c in res.coins)
+    low, high = confs.values()
+    assert low == 0.125 and high == 0.5
 
 
 def test_conflicting_patterns_ask_user():
@@ -126,9 +139,11 @@ def test_template_from_tilted_coin_picks_major_axis():
     swapped = coins[0].model_copy(update=dict(ellipse=(major, minor, angle + 90.0)))
     a = build_templates([(pre.gray, coins[0], "THB_5")])["THB_5"][0]
     b = build_templates([(pre.gray, swapped, "THB_5")])["THB_5"][0]
-    assert _ncc_max(a, b) > 0.99          # เหมือนกันเมื่อหมุน (angle+180 = หมุนครึ่งรอบ)
-    wrong = coin_features(pre.gray, coins[0])
-    assert min(_ncc_max(a, f) for f in wrong) < 0.95   # อีกแบบที่ยืดผิดแกนต่างออกไปจริง
+    assert _ncc_spec(a, b) > 0.99         # เหมือนกันเมื่อหมุน (angle+180 = หมุนครึ่งรอบ)
+    both = [f for f, _ in _orientations(pre.gray, coins[0])]
+    assert min(_ncc_spec(a, _spectrum(f)) for f in both) < 0.95   # อีกแบบที่ยืดผิดแกนต่างออกไปจริง
+    # ตอนจำแนกก็เลือกแกนเดียวกับตอนสร้าง template
+    assert _ncc_max(coin_feature(pre.gray, coins[0]), coin_feature(pre.gray, swapped)) > 0.99
 
 
 def test_plain_coin_still_asks_user():

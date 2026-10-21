@@ -22,7 +22,7 @@ MSG_COIN_SCALE = "ยังบอกชนิดไม่ได้จนกว�
 MSG_COIN_UNKNOWN = "ขนาดหรือสีไม่ตรงกับเหรียญไทยชนิดใด (อาจเป็นเหรียญต่างประเทศหรือเหรียญที่ระลึก)"
 MSG_COIN_BORDERLINE = "ขนาดก้ำกึ่งระหว่าง {a} กับ {b} กรุณาเลือกชนิดเหรียญ"
 MSG_COIN_OLD_2_BAHT = "อาจเป็นเหรียญ 2 บาทสีเงินรุ่นเก่า กรุณาเลือกชนิดเหรียญ"
-MSG_TEMPLATE_GUESS = "ระบบเดาชนิดเหรียญจากลวดลาย กรุณาตรวจสอบและยืนยันชนิดเหรียญ"
+MSG_TEMPLATE_GUESS = "ระบบเดาชนิดเหรียญจากลวดลาย กรุณาตรวจสอบและยืนยันชนิดเหรียญ ({n} เหรียญ)"
 MSG_COIN_TEMPLATE = "ระบบเดาชนิดจากลวดลาย กรุณาตรวจสอบ"
 
 
@@ -149,16 +149,20 @@ def _template_guess(pre: PreprocessResult, coins: list[Coin], feats: list, diams
     cand = list(candidates)
     cand[idx] = [code]
     out = _label(coins, feats, diams, cand, {**fixed, idx: code}, best, set(), False, None)
+    # margin ที่ผ่านเกณฑ์ (>= MIN_MARGIN) -> 0..0.5 ลวดลายชัดแค่ไหนก็ยังเป็นการเดา จึงไม่เกิน 0.5
+    template_conf = 0.5 * min(1.0, (margin - TEMPLATE_MIN_MARGIN) / TEMPLATE_MIN_MARGIN)
     for i in ambiguous | {idx}:
         c = out[i]
         if c.source != "estimated" or c.coin_type not in COIN_SPECS:
             continue
-        conf = c.confidence if i != idx else 1.0
-        conf = min(conf, margin / (2 * TEMPLATE_MIN_MARGIN), 0.5)
+        conf = template_conf if i == idx else min(c.confidence, template_conf)
         out[i] = c.model_copy(update=dict(confidence=round(conf, 3), status="needs_confirmation",
                                           reason=MSG_COIN_TEMPLATE))
     # อย่างน้อยเหรียญ idx เป็น needs_confirmation เสมอ จึงแทน reason ของทั้งภาพได้เลย
-    return summarize(pre, out, best.scale, "inferred").model_copy(update=dict(reason=MSG_TEMPLATE_GUESS))
+    # (reason รายเหรียญอื่น เช่น unknown ยังอยู่ จำนวนนับรวมทุกเหรียญที่ต้องตรวจ)
+    n = sum(c.status != "ok" for c in out)
+    return summarize(pre, out, best.scale, "inferred").model_copy(
+        update=dict(reason=MSG_TEMPLATE_GUESS.format(n=n)))
 
 
 def classify_coins(pre: PreprocessResult, coins: list[Coin],

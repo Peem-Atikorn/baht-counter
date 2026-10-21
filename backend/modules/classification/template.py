@@ -24,7 +24,7 @@ MIN_RADIUS_PX = 4.0              # เหรียญรัศมี (แกน�
 MIN_SCORE = 0.30                 # คะแนนของชนิดที่ดีที่สุดต้องไม่ต่ำกว่านี้
 MIN_MARGIN = 0.08                # และต้องห่างจากชนิดอันดับสองอย่างน้อยเท่านี้
 
-Templates = dict[str, list[np.ndarray]]   # รหัสเหรียญ -> ลักษณะเชิงขั้วของแต่ละ template (หลายด้าน/หลายเหรียญ)
+Templates = dict[str, list[np.ndarray]]   # รหัสเหรียญ -> สเปกตรัม (rfft ตามแกนมุม) ของแต่ละ template (หลายด้าน/หลายเหรียญ)
 
 
 def _normalize(gray: np.ndarray, center: tuple[float, float], major: float, minor: float,
@@ -94,39 +94,44 @@ def _orientations(gray: np.ndarray, coin: Coin) -> list[tuple[np.ndarray | None,
             for a in angles]
 
 
-def coin_features(gray: np.ndarray, coin: Coin) -> list[np.ndarray]:
-    """ลักษณะเชิงขั้วของเหรียญ ภาพเอียงคืน 2 แบบ ใช้ค่าที่ match ดีกว่า"""
-    return [f for f, _ in _orientations(gray, coin) if f is not None]
+def coin_feature(gray: np.ndarray, coin: Coin) -> np.ndarray | None:
+    """ลักษณะเชิงขั้วของเหรียญ ภาพเอียงเลือกแกนที่ขอบเป็นวงกลมพอดี (ellipse จาก detection เรียงแกนยาว/สั้นใหม่
+    แต่ angle อาจเป็นของแกนสั้น) ใช้ทั้งตอนสร้าง template และตอนจำแนก แบบที่ยืดผิดแกนอาจบังเอิญคล้ายอีกชนิด"""
+    opts = [o for o in _orientations(gray, coin) if o[0] is not None]
+    return max(opts, key=lambda o: o[1])[0] if opts else None
+
+
+def _spectrum(feat: np.ndarray) -> np.ndarray:
+    return np.fft.rfft(feat, axis=0)
+
+
+def _ncc_spec(fa: np.ndarray, fb: np.ndarray) -> float:
+    """NCC สูงสุดเมื่อเลื่อนทุกมุม จากสเปกตรัมตามแกนมุม (รวมทุกรัศมี)"""
+    return float(np.fft.irfft((fa * np.conj(fb)).sum(axis=1), n=N_ANGLES).max())
 
 
 def _ncc_max(a: np.ndarray, b: np.ndarray) -> float:
-    """NCC สูงสุดเมื่อเลื่อน b ทุกมุม (FFT ตามแกนมุม รวมทุกรัศมี)"""
-    fa = np.fft.rfft(a, axis=0)
-    fb = np.fft.rfft(b, axis=0)
-    corr = np.fft.irfft((fa * np.conj(fb)).sum(axis=1), n=a.shape[0])
-    return float(corr.max())
+    """NCC สูงสุดเมื่อเลื่อน b ทุกมุม จากลักษณะเชิงขั้วโดยตรง"""
+    return _ncc_spec(_spectrum(a), _spectrum(b))
 
 
 def build_templates(samples: list[tuple[np.ndarray, Coin, str]]) -> Templates:
-    """samples = (ภาพเทา, เหรียญ, รหัสชนิดจริง) จากชุดปรับระบบ"""
+    """samples = (ภาพเทา, เหรียญ, รหัสชนิดจริง) จากชุดปรับระบบ เก็บเป็นสเปกตรัมไว้เลย ไม่ต้อง FFT ใหม่ทุกครั้งที่จำแนก"""
     out: Templates = {}
     for gray, coin, code in samples:
-        # ellipse จาก detection เรียงแกนยาว/สั้นใหม่ แต่ angle อาจเป็นของแกนสั้น เลือกแบบที่ขอบเป็นวงกลมพอดี
-        opts = [o for o in _orientations(gray, coin) if o[0] is not None]
-        if opts:
-            out.setdefault(code, []).append(max(opts, key=lambda o: o[1])[0])
+        f = coin_feature(gray, coin)
+        if f is not None:
+            out.setdefault(code, []).append(_spectrum(f))
     return out
 
 
 def match_scores(gray: np.ndarray, coin: Coin, templates: Templates, codes: list[str]) -> dict[str, float]:
     """คะแนนสูงสุดต่อชนิด (เฉพาะชนิดใน codes ที่มี template)"""
-    feats = coin_features(gray, coin)
-    if not feats:
+    f = coin_feature(gray, coin)
+    if f is None:
         return {}
-    return {
-        code: max(_ncc_max(f, t) for f in feats for t in templates[code])
-        for code in codes if templates.get(code)
-    }
+    fs = _spectrum(f)
+    return {code: max(_ncc_spec(fs, t) for t in templates[code]) for code in codes if templates.get(code)}
 
 
 def decide(scores: dict[str, float]) -> tuple[str, float] | None:
