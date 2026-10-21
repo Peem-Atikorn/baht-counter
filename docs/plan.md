@@ -302,8 +302,8 @@ def classify_coins(pre: PreprocessResult, coins: list[Coin],
 - [ ] ตรวจไฟล์ที่อัปโหลด: ชนิดไฟล์ ขนาดไม่เกินกำหนด
 - [ ] บันทึก log: เวลาแต่ละขั้น, จำนวนครั้งที่ผู้ใช้แก้ผล (ใช้เป็นตัวชี้วัดในรายงาน)
 - [ ] Export ป้ายกำกับจากผลที่ผู้ใช้แก้แล้ว เพื่อใช้หน้าเว็บเป็นเครื่องมือทำป้ายกำกับ
-- [ ] Dockerfile และ `docker-compose.yml`
-- [x] Deploy ขึ้น Render free tier (มี HTTPS): Web Service เดียวจาก `Dockerfile` ที่ root, region Singapore, deploy อัตโนมัติเมื่อมี commit เข้า `develop`, env `PORT=8000` และ `COIN_USE_MOCK` (ใส่ชื่อขั้นที่ยังเป็น mock คั่นด้วย comma หรือ `0` เมื่อโมดูลจริงเสร็จครบ), health check `/api/coin-types`
+- [x] Dockerfile และ `docker-compose.yml`
+- [x] Deploy ขึ้น Render free tier (มี HTTPS): Web Service เดียวจาก `Dockerfile` ที่ root, region Singapore, deploy อัตโนมัติเมื่อมี commit เข้า `develop`, `PORT` ไม่ต้องตั้ง (Render ส่งมาเอง), env `COIN_USE_MOCK=0` (โมดูลจริงครบทั้ง 3 ขั้นแล้ว), health check `/api/health`
 
 **API ที่ต้องมี**
 

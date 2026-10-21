@@ -3,6 +3,7 @@
 ## เก็บข้อมูลที่ไหน
 
 - `BAHT_DATA_DIR` (ค่าเริ่มต้น `storage/`) คือรากของข้อมูลทั้งหมด ไม่หายเมื่อรีสตาร์ท
+  (ยกเว้นบน Render แผน Free ที่ไม่มี disk ผูกไว้ ดูหัวข้อ "Env บนเซิร์ฟเวอร์ที่ deploy")
   - `{BAHT_DATA_DIR}/baht.db` — SQLite เก็บผลการนับ (`backend/app/db.py`)
   - `{BAHT_DATA_DIR}/images/{analysis_id}/` — ไฟล์ภาพต้นฉบับ + ภาพกลางทาง (`backend/app/storage.py`)
 - ภาพต้นฉบับเก็บเป็น `original<นามสกุลตามชนิดไฟล์ที่อัปโหลด>` (เช่น `.jpg`, `.heic`) ไม่แปลงเป็น PNG
@@ -63,3 +64,15 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 
 `COIN_USE_MOCK` (อ่านใน `pipeline.mock_stages()`): `"1"` (ค่าเริ่มต้น) = mock ทุกขั้น, `"0"` = ของจริงทุกขั้น,
 หรือรายชื่อคั่นด้วย comma เช่น `"preprocess,classification"` = ขั้นที่ไม่ได้ระบุใช้ของจริง
+
+## Env บนเซิร์ฟเวอร์ที่ deploy
+
+| env | ค่าที่ตั้งบน Render | ความหมาย |
+|---|---|---|
+| `COIN_USE_MOCK` | `0` | โมดูลจริงครบทั้ง 3 ขั้นแล้ว (preprocess, detection, classification) ใช้ของจริงทั้งหมด |
+| `BAHT_DATA_DIR` | `/data` (ตั้งใน `Dockerfile` ไม่ต้องตั้งซ้ำใน dashboard) | แผน Free ของ Render ไม่มี persistent disk ผูกกับ `/data` ข้อมูลจึงยังหายเมื่อ redeploy, restart หรือ sleep แล้วตื่น แม้ path จะคงที่ |
+| `PORT` | ไม่ตั้ง (Render ตั้งให้เอง) | อ่านใน `CMD` ของ Dockerfile ผ่าน `${PORT:-8000}` |
+
+**ไม่มีระบบ login:** `GET /api/history` แสดง `analysis_id` ของทุกรายการที่มีในระบบ ไม่ต้องเดา ใครเปิดเว็บก็
+ไล่ดูผลและภาพของทุกคนได้ผ่าน `GET /api/analyses/{id}` และภาพทุกภาพ (`/api/analyses/{id}/images/{name}`)
+**อย่าใช้ภาพส่วนตัวทดสอบบนเซิร์ฟเวอร์ที่ deploy จริง** ใช้ภาพเหรียญเปล่าๆจาก `data/samples/` พอ
