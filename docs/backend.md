@@ -62,7 +62,7 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 
 ## สลับโมดูลจริง/mock
 
-`COIN_USE_MOCK` (อ่านใน `pipeline.mock_stages()`): `"1"` (ค่าเริ่มต้น) = mock ทุกขั้น, `"0"` = ของจริงทุกขั้น,
+`COIN_USE_MOCK` (อ่านใน `pipeline.mock_stages()`): `"0"` (ค่าเริ่มต้น) = ของจริงทุกขั้น, `"1"` = mock ทุกขั้น,
 หรือรายชื่อคั่นด้วย comma เช่น `"preprocess,classification"` = ขั้นที่ไม่ได้ระบุใช้ของจริง
 
 ## Env บนเซิร์ฟเวอร์ที่ deploy
@@ -76,3 +76,26 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 **ไม่มีระบบ login:** `GET /api/history` แสดง `analysis_id` ของทุกรายการที่มีในระบบ ไม่ต้องเดา ใครเปิดเว็บก็
 ไล่ดูผลและภาพของทุกคนได้ผ่าน `GET /api/analyses/{id}` และภาพทุกภาพ (`/api/analyses/{id}/images/{name}`)
 **อย่าใช้ภาพส่วนตัวทดสอบบนเซิร์ฟเวอร์ที่ deploy จริง** ใช้ภาพเหรียญเปล่าๆจาก `data/samples/` พอ
+
+## เทสต์ของ API
+
+ทุก endpoint มี test กรณีปกติ + กรณีล้มเหลวอย่างน้อย 1 อย่าง (เกณฑ์เสร็จ issue #4) ยกเว้นที่ไม่มี input
+ให้ผิดได้ (`/api/health`, `/api/coin-types`) ระบุไว้ว่า "ไม่มีกรณีล้มเหลวจาก input" แทนเทสต์ปลอม
+
+| Endpoint | กรณีปกติ | กรณีล้มเหลว |
+|---|---|---|
+| `GET /api/health` | `test_health` | ไม่มีกรณีล้มเหลวจาก input |
+| `GET /api/coin-types` | `test_coin_types` | ไม่มีกรณีล้มเหลวจาก input |
+| `POST /api/analyses` | `test_create_and_get_analysis`, `test_create_analysis_with_real_modules_on_sample_image` | `test_rejects_wrong_type` (415), `test_rejects_corrupt_image` (400), `test_rejects_too_large` (413), `test_rejects_too_many_pixels` (413) |
+| `GET /api/analyses/{id}` | `test_create_and_get_analysis`, `test_create_analysis_persists_across_fresh_client` | `test_unknown_analysis_404` |
+| `GET /api/analyses/{id}/images/{name}` | `test_images_are_served` | `test_images_are_served` (ชื่อภาพไม่มี, 404), `test_image_of_unknown_analysis_404` (analysis ไม่มี, 404) |
+| `PUT /api/analyses/{id}/coins/{coin_id}` | `test_update_coin_sets_user_edited_and_recomputes_scale`, `test_update_coin_keeps_previously_edited_coin`, `test_update_coin_to_unknown_does_not_500`, `test_update_coin_to_unknown_after_anchor_still_200` | `test_update_unknown_coin_404`, `test_update_coin_unknown_analysis_404`, `test_update_coin_invalid_coin_type_422` |
+| `POST /api/analyses/{id}/coins` | `test_add_coin_needs_confirmation_until_typed`, `test_added_coin_with_fake_radius_is_not_used_as_anchor` | `test_add_coin_unknown_analysis_404`, `test_add_coin_missing_xy_422`, `test_add_coin_non_numeric_xy_422` |
+| `DELETE /api/analyses/{id}/coins/{coin_id}` | `test_delete_coin_recomputes_total`, `test_delete_last_coin_leaves_failed_not_zero` | `test_delete_unknown_coin_404` |
+| `GET /api/history` | `test_history_lists_newest_first` | `test_history_rejects_invalid_limit` |
+| `GET /api/analyses/{id}/export` | `test_export_json_and_csv` | `test_export_unknown_analysis_404`, `test_export_invalid_format_422` |
+| `GET /api/labels/export` | `test_labels_export_has_unique_names_and_raw_images` | `test_labels_export_empty_is_404` |
+| `GET /api/stats` | `test_stats_reports_edit_count` | `test_stats_before_any_analysis_is_200_not_500` (DB ว่าง ต้องตอบ 200 ค่า 0 ไม่ใช่ 500) |
+
+**พฤติกรรมที่พบแต่ยังไม่แก้ (รอยืนยัน):** `POST /api/analyses/{id}/coins` ด้วย `xy` ที่อยู่นอกภาพ (เช่น
+`[99999, 99999]`) ตอบ `201` เฉยๆ ไม่ตรวจพิกัดกับขนาดภาพ ยังไม่ได้เขียนเทสต์หรือแก้โค้ดส่วนนี้

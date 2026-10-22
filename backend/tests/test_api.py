@@ -1,6 +1,7 @@
 import io
 import json
 import zipfile
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -10,6 +11,8 @@ from app import main
 from app.main import app
 
 client = TestClient(app)
+
+SAMPLES_DIR = Path(__file__).resolve().parents[2] / "data" / "samples"
 
 
 def png_bytes(w=800, h=600) -> bytes:
@@ -65,6 +68,10 @@ def test_images_are_served():
     gray_url = body["result"]["debug_images"]["gray"]
     assert client.get(gray_url).status_code == 200
     assert client.get(f"/api/analyses/{aid}/images/nope").status_code == 404
+
+
+def test_image_of_unknown_analysis_404():
+    assert client.get("/api/analyses/does-not-exist/images/original").status_code == 404
 
 
 def test_rejects_wrong_type():
@@ -170,6 +177,13 @@ def test_update_coin_unknown_analysis_404():
     assert r.status_code == 404
 
 
+def test_update_coin_invalid_coin_type_422():
+    body = create_analysis()
+    coin_id = body["result"]["coins"][0]["coin_id"]
+    r = client.put(f"/api/analyses/{body['analysis_id']}/coins/{coin_id}", json={"coin_type": "THB_3"})
+    assert r.status_code == 422
+
+
 def test_add_coin_needs_confirmation_until_typed():
     body = create_analysis()
     aid = body["analysis_id"]
@@ -190,6 +204,18 @@ def test_add_coin_needs_confirmation_until_typed():
 def test_add_coin_unknown_analysis_404():
     r = client.post("/api/analyses/does-not-exist/coins", json={"xy": [1.0, 1.0]})
     assert r.status_code == 404
+
+
+def test_add_coin_missing_xy_422():
+    body = create_analysis()
+    r = client.post(f"/api/analyses/{body['analysis_id']}/coins", json={})
+    assert r.status_code == 422
+
+
+def test_add_coin_non_numeric_xy_422():
+    body = create_analysis()
+    r = client.post(f"/api/analyses/{body['analysis_id']}/coins", json={"xy": ["a", "b"]})
+    assert r.status_code == 422
 
 
 def test_added_coin_with_fake_radius_is_not_used_as_anchor():
@@ -284,6 +310,12 @@ def test_export_unknown_analysis_404():
     assert client.get("/api/analyses/does-not-exist/export").status_code == 404
 
 
+def test_export_invalid_format_422():
+    body = create_analysis()
+    r = client.get(f"/api/analyses/{body['analysis_id']}/export", params={"format": "xml"})
+    assert r.status_code == 422
+
+
 def test_labels_export_empty_is_404():
     r = client.get("/api/labels/export")
     assert r.status_code == 404
@@ -324,3 +356,29 @@ def test_stats_reports_edit_count():
     assert stats["analyses_count"] >= 1
     assert stats["total_edits"] >= 1
     assert set(stats["avg_timings_sec"]) >= {"preprocess", "detection", "classification"}
+
+
+def test_stats_before_any_analysis_is_200_not_500():
+    """ยังไม่มีผลเลย (DB ว่าง) ต้องตอบ 200 พร้อมค่า 0 ไม่ใช่ 500 (เช่น หารด้วยศูนย์)"""
+    r = client.get("/api/stats")
+    assert r.status_code == 200
+    stats = r.json()
+    assert stats["analyses_count"] == 0
+    assert stats["total_edits"] == 0
+    assert stats["avg_timings_sec"] == {}
+    assert stats["edits_per_analysis_avg"] == 0.0
+
+
+def test_create_analysis_with_real_modules_on_sample_image(monkeypatch):
+    """COIN_USE_MOCK=0 (โมดูลจริงครบทั้ง 3 ขั้น) กับภาพเหรียญจริงใน data/samples/ ต้องได้ผลที่ใช้งานได้จริง
+    ไม่ตรวจจำนวนเหรียญหรือยอดเงินที่แน่นอน เพราะความแม่นเป็นงานของส่วนที่ 2–3 ตรวจแค่ว่าไม่ล้มและเจอเหรียญ
+    """
+    monkeypatch.setenv("COIN_USE_MOCK", "0")
+    image_path = SAMPLES_DIR / "p1_white_room_top_001.jpg"
+    data = image_path.read_bytes()
+
+    r = client.post("/api/analyses", files={"file": ("p1_white_room_top_001.jpg", data, "image/jpeg")})
+    assert r.status_code == 201
+    result = r.json()["result"]
+    assert result["status"] != "failed"
+    assert len(result["coins"]) >= 1

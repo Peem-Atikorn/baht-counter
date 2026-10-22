@@ -201,8 +201,8 @@ py -3.11 -m venv .venv                 # macOS/Linux: python3.11 -m venv .venv
 
 - เอกสาร API: http://localhost:8000/docs
 - เทสต์: `.venv/Scripts/python -m pytest`
-- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ค่าเริ่มต้นในโค้ดยังเป็น `1` = mock ทั้งหมด ต้องตั้งเองเป็น
-  `0` เพื่อใช้ของจริง) ตอนนี้โมดูลจริงครบทั้ง 3 ขั้นแล้ว (`preprocess`, `detection`, `classification`) —
+- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ค่าเริ่มต้นในโค้ดเป็น `0` = ของจริงทั้งหมดแล้ว ตั้งเป็น `1`
+  เพื่อ mock ทุกขั้นตอนดีบัก) โมดูลจริงครบทั้ง 3 ขั้นแล้ว (`preprocess`, `detection`, `classification`) —
   `detection` ของจริงยังพลาดกับภาพถ่ายจริงบางแบบ (ดู issue #2) ควรเทสต์ด้วยภาพจริงเสมอ เพราะผล mock
   ทำให้เข้าใจผิดว่าระบบพร้อมแล้ว ดีบักเฉพาะขั้นเดียวได้ด้วยชื่อขั้นคั่น comma เช่น `COIN_USE_MOCK=detection`
 
