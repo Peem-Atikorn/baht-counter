@@ -40,21 +40,19 @@ def detect_coins(pre: PreprocessResult) -> list[Coin]:
     gray = pre.gray
     image = pre.image
 
-    # 1. Canny edge สำหรับภาพ debug
-    edges = cv2.Canny(gray, 40, 120)
-
-    # 2. Binarization & Morphology
+    # 1. Binarization & Morphology
     raw_mask = segment_coins(image, gray)
     clean_mask = clean_morphology(raw_mask)
 
-    # 3. Watershed Segmentation
+    # 2. Watershed Segmentation
     markers, dist = apply_watershed(image, clean_mask)
 
-    # 4. สกัดข้อมูลเหรียญและ Fit Ellipse
+    # 3. สกัดข้อมูลเหรียญและ Fit Ellipse
     coins = extract_coins_from_markers(markers, clean_mask=clean_mask)
 
-    # 5. สร้างภาพกลางทาง (Debug Images)
+    # 4. สร้างภาพกลางทาง (Debug Images) เมื่อต้องการ
     if pre.debug_images is not None:
+        edges = cv2.Canny(gray, 40, 120)
         pre.debug_images["detection_edges"] = edges
         pre.debug_images["detection_mask"] = clean_mask
         pre.debug_images["detection_distance"] = render_distance_map(dist)

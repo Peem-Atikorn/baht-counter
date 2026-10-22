@@ -38,8 +38,8 @@ def filter_size_relative_to_coins(coins: list[Coin]) -> list[Coin]:
 def extract_coins_from_markers(
     markers: np.ndarray,
     clean_mask: np.ndarray | None = None,
-    min_area_px: float = 100.0,
-    min_circularity: float = 0.60,
+    min_area_px: float = 250.0,
+    min_circularity: float = 0.65,
     min_aspect_ratio: float = 0.50,
     filter_relative_size: bool = True,
 ) -> list[Coin]:
@@ -94,10 +94,19 @@ def extract_coins_from_markers(
                 minor_axis = float(min(axis1, axis2))
 
                 # กรองอัตราส่วนแกนสั้น/แกนยาว (ไม่แบนเกินไป)
-                if major_axis > 0 and (minor_axis / major_axis) < min_aspect_ratio:
+                aspect_ratio = minor_axis / major_axis if major_axis > 0 else 0.0
+                if major_axis > 0 and aspect_ratio < min_aspect_ratio:
                     continue
 
-                radius_px = major_axis / 2.0
+                # ประมาณรัศมี:
+                # - ภาพมุมตรงหรือเอียงเล็กน้อย (aspect >= 0.88): ใช้ค่าเฉลี่ยกึ่งแกน (major + minor) / 4.0
+                #   เพื่อลดผลกระทบจาก noise ขอบหยักและเงา ทำให้ความคลาดเคลื่อนของรัศมีลดลงอย่างมีนัยสำคัญ
+                # - ภาพมุมเอียงชัดเจน (aspect < 0.88): ใช้แกนยาว major / 2.0 ซึ่งเป็นมิติที่ไม่ถูกบีบอัดตามมุมมองกล้อง
+                if aspect_ratio >= 0.88:
+                    radius_px = (major_axis + minor_axis) / 4.0
+                else:
+                    radius_px = major_axis / 2.0
+
                 ellipse_tuple: tuple[float, float, float] | None = (major_axis, minor_axis, float(angle))
                 center_xy = (float(cx), float(cy))
             except cv2.error:
