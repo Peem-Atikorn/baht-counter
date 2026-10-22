@@ -64,14 +64,35 @@ def _to_resized(c: Coin, f: float) -> Coin:
     return c.model_copy(update={"center_xy": (x * f, y * f), "radius_px": c.radius_px * f, "ellipse": ellipse})
 
 
+def _decode_factor(decoded_width: int, original_size: tuple[int, int] | None) -> float:
+    """ตัวคูณจากภาพต้นฉบับจริง -> ภาพที่ `image` เป็น (ขนาดที่ main.decode_image ถอดรหัสมา)
+
+    `original_size` เป็น `None` หมายถึง `image` ที่ส่งเข้ามาคือภาพต้นฉบับเอง (ตัวคูณ = 1.0 พฤติกรรมเดิมก่อน
+    main.decode_image ย่อตอนถอดรหัส — เทสต์เดิมที่เรียก pipeline ตรงด้วยภาพต้นฉบับไม่ต้องแก้) ไม่ใช่ `None`
+    หมายถึง main.py ถอดรหัสแบบย่อมาแล้ว ต้องคูณเข้ากับ `pre.resize_factor` ก่อนแปลงพิกัดกลับเป็นภาพต้นฉบับจริง
+    (ดู main.decode_image, docs/backend.md)
+    """
+    if original_size is None:
+        return 1.0
+    original_w = original_size[0]
+    return decoded_width / original_w if original_w else 1.0
+
+
 def run(
     image: np.ndarray, anchor: tuple[int, str] | None = None,
+    original_size: tuple[int, int] | None = None,
 ) -> tuple[CountResult, dict[str, np.ndarray], dict[str, float]]:
-    """คืน (ผล, ภาพกลางทาง, เวลาแต่ละขั้นเป็นวินาที) — app เป็นคนเก็บภาพกลางทางและใส่ URL ลง debug_images"""
+    """คืน (ผล, ภาพกลางทาง, เวลาแต่ละขั้นเป็นวินาที) — app เป็นคนเก็บภาพกลางทางและใส่ URL ลง debug_images
+
+    `original_size` (กว้าง, สูง) ของภาพต้นฉบับจริง ถ้า `image` ถูกย่อตอนถอดรหัสมาก่อน (ดู main.decode_image)
+    `None` = `image` คือภาพต้นฉบับเอง — ผลลัพธ์ (`image_size`, พิกัดเหรียญ) เป็นพิกัดภาพต้นฉบับเสมอไม่ว่ากรณีใด
+    """
     mocks = mock_stages()
     pre_fn, det_fn, cls_fn = _select_fns(mocks)
 
     h, w = image.shape[:2]
+    orig_wh = original_size if original_size is not None else (w, h)
+    decode_factor = _decode_factor(w, original_size)
     timings: dict[str, float] = {}
     stage = "preprocess"
     t0 = time.perf_counter()
@@ -79,14 +100,14 @@ def run(
         pre = pre_fn(image)
         timings["preprocess"] = time.perf_counter() - t0
         if pre.status == "failed":
-            return _failed((w, h), pre.reason or "ภาพนี้ใช้ไม่ได้"), pre.debug_images, timings
+            return _failed(orig_wh, pre.reason or "ภาพนี้ใช้ไม่ได้"), pre.debug_images, timings
 
         stage = "detection"
         t1 = time.perf_counter()
         coins = det_fn(pre)
         timings["detection"] = time.perf_counter() - t1
         if not coins:
-            return _failed((w, h), "ไม่พบเหรียญในภาพ"), pre.debug_images, timings
+            return _failed(orig_wh, "ไม่พบเหรียญในภาพ"), pre.debug_images, timings
 
         stage = "classification"
         t2 = time.perf_counter()
@@ -96,19 +117,19 @@ def run(
         if anchor is not None:
             raise  # anchor ไม่ถูกต้อง (coin_id ไม่มี / coin_type ผิด) ให้ route ตอบ 400
         log.exception("pipeline failed at %s", stage)
-        return _failed((w, h), "ระบบประมวลผลภาพผิดพลาด กรุณาลองใหม่อีกครั้ง"), {}, timings
+        return _failed(orig_wh, "ระบบประมวลผลภาพผิดพลาด กรุณาลองใหม่อีกครั้ง"), {}, timings
     except NotImplementedError:
         log.error("โมดูล %s ยังไม่เสร็จ ตั้ง COIN_USE_MOCK ให้ใช้ mock ของขั้นนี้", stage)
-        return _failed((w, h), f"ระบบยังไม่พร้อม: ขั้น {stage} ยังไม่เสร็จ"), {}, timings
+        return _failed(orig_wh, f"ระบบยังไม่พร้อม: ขั้น {stage} ยังไม่เสร็จ"), {}, timings
     except Exception:
         log.exception("pipeline failed at %s", stage)
-        return _failed((w, h), "ระบบประมวลผลภาพผิดพลาด กรุณาลองใหม่อีกครั้ง"), {}, timings
+        return _failed(orig_wh, "ระบบประมวลผลภาพผิดพลาด กรุณาลองใหม่อีกครั้ง"), {}, timings
     finally:
         log.info("timings %s mocks=%s", {k: round(v, 3) for k, v in timings.items()}, sorted(mocks))
 
-    f = pre.resize_factor
+    f = pre.resize_factor * decode_factor
     result = result.model_copy(update={
-        "image_size": (w, h),
+        "image_size": orig_wh,
         "coins": [_to_original(c, f) for c in result.coins],
         "scale_mm_per_px": result.scale_mm_per_px * f if result.scale_mm_per_px is not None else None,
     })
@@ -140,20 +161,26 @@ def _reset_classification(c: Coin) -> Coin:
     })
 
 
-def reclassify(image: np.ndarray, coins: list[Coin], anchor: tuple[int, str] | None) -> CountResult:
+def reclassify(
+    image: np.ndarray, coins: list[Coin], anchor: tuple[int, str] | None,
+    original_size: tuple[int, int] | None = None,
+) -> CountResult:
     """จัดชนิดเหรียญใหม่ทั้งภาพ ใช้ตอนผู้ใช้แก้ชนิดเหรียญ (PUT .../coins/{coin_id})
 
-    `coins` เป็นพิกัดภาพต้นฉบับ (เหมือนที่ส่งให้ frontend) `anchor` คือเหรียญที่ผู้ใช้เลือกชนิดเอง
+    `coins` เป็นพิกัดภาพต้นฉบับ (เหมือนที่ส่งให้ frontend) `anchor` คือเหรียญที่ผู้ใช้เลือกชนิดเอง `original_size`
+    ดู `run()` — `None` = `image` คือภาพต้นฉบับเอง ไม่ใช่ `None` = `image` ถูกย่อตอนถอดรหัสมา (main.decode_image)
     """
     _, _, cls_fn = _select_fns(mock_stages())
     pre = _preprocess_original(image)
+    h, w = image.shape[:2]
+    orig_wh = original_size if original_size is not None else (w, h)
     if pre.status == "failed":
-        return _failed(pre.original_size, pre.reason or "ภาพนี้ใช้ไม่ได้")
-    f = pre.resize_factor
+        return _failed(orig_wh, pre.reason or "ภาพนี้ใช้ไม่ได้")
+    f = pre.resize_factor * _decode_factor(w, original_size)
     fresh = [_to_resized(_reset_classification(c), f) for c in coins]
     result = cls_fn(pre, fresh, anchor)
     return result.model_copy(update={
-        "image_size": pre.original_size,
+        "image_size": orig_wh,
         "coins": [_to_original(c, f) for c in result.coins],
         "scale_mm_per_px": result.scale_mm_per_px * f if result.scale_mm_per_px is not None else None,
     })
@@ -161,6 +188,7 @@ def reclassify(image: np.ndarray, coins: list[Coin], anchor: tuple[int, str] | N
 
 def locate_added_coin(
     image: np.ndarray, xy: tuple[float, float], existing_coins: list[Coin],
+    original_size: tuple[int, int] | None = None,
 ) -> tuple[Coin, bool] | None:
     """หาเหรียญรอบจุดที่ผู้ใช้กด (xy เป็นพิกัดภาพต้นฉบับ) ใช้ตอน POST .../coins
 
@@ -169,11 +197,13 @@ def locate_added_coin(
 
     คืน `(เหรียญ, เป็นรัศมีสมมติหรือไม่)` หรือ `None` ถ้าปรับปรุงภาพไม่สำเร็จ รัศมีสมมติ (`True`)
     ห้ามใช้เป็น anchor คำนวณสเกลทั้งภาพ เพราะไม่ใช่ขนาดจริงของเหรียญ (ดู main.py / docs/backend.md)
+    `original_size` ดู `run()` — `None` = `image`/`xy` คือพิกัดภาพต้นฉบับเองอยู่แล้ว
     """
     pre = _preprocess_original(image)
     if pre.status == "failed":
         return None
-    f = pre.resize_factor
+    w = image.shape[1]
+    f = pre.resize_factor * _decode_factor(w, original_size)
     local_xy = (xy[0] * f, xy[1] * f)
     detect_at = getattr(detection, "detect_coin_at", None)
     coin = detect_at(pre, local_xy) if detect_at else None
