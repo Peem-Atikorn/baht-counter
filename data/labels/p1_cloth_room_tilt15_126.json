@@ -1,0 +1,218 @@
+{
+  "image": "p1_cloth_room_tilt15_126.jpg",
+  "image_size": [
+    4284,
+    5712
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        2235.1,
+        2471.1
+      ],
+      "radius_px": 158.3,
+      "coin_type": "THB_0_25"
+    },
+    {
+      "center_xy": [
+        1608.1,
+        3154.0
+      ],
+      "radius_px": 206.4,
+      "coin_type": "THB_0_25"
+    },
+    {
+      "center_xy": [
+        2079.9,
+        1626.7
+      ],
+      "radius_px": 174.0,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        2725.6,
+        4464.1
+      ],
+      "radius_px": 254.9,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        2626.3,
+        2284.8
+      ],
+      "radius_px": 210.1,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        1254.2,
+        2421.4
+      ],
+      "radius_px": 207.5,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        1142.4,
+        1185.9
+      ],
+      "radius_px": 163.9,
+      "coin_type": "THB_0_50"
+    },
+    {
+      "center_xy": [
+        1812.9,
+        707.8
+      ],
+      "radius_px": 144.9,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2067.5,
+        4911.1
+      ],
+      "radius_px": 325.0,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2055.1,
+        3371.3
+      ],
+      "radius_px": 237.7,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1906.1,
+        2800.1
+      ],
+      "radius_px": 219.7,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1303.8,
+        2843.6
+      ],
+      "radius_px": 264.0,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1316.2,
+        2005.4
+      ],
+      "radius_px": 191.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1639.1,
+        1713.6
+      ],
+      "radius_px": 171.3,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2272.4,
+        1968.2
+      ],
+      "radius_px": 215.2,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        2017.8,
+        981.0
+      ],
+      "radius_px": 161.1,
+      "coin_type": "THB_1"
+    },
+    {
+      "center_xy": [
+        1527.3,
+        1372.1
+      ],
+      "radius_px": 192.9,
+      "coin_type": "THB_2"
+    },
+    {
+      "center_xy": [
+        3129.2,
+        2694.6
+      ],
+      "radius_px": 316.2,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        2166.8,
+        4110.2
+      ],
+      "radius_px": 371.4,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        1533.5,
+        962.3
+      ],
+      "radius_px": 189.2,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        2837.4,
+        1887.4
+      ],
+      "radius_px": 260.8,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        2036.5,
+        1291.4
+      ],
+      "radius_px": 201.5,
+      "coin_type": "THB_5"
+    },
+    {
+      "center_xy": [
+        1781.9,
+        2228.9
+      ],
+      "radius_px": 282.2,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1036.9,
+        1626.7
+      ],
+      "radius_px": 246.2,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        2713.2,
+        3576.2
+      ],
+      "radius_px": 365.0,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        1490.1,
+        3743.8
+      ],
+      "radius_px": 389.9,
+      "coin_type": "THB_10"
+    }
+  ],
+  "notes": ""
+}

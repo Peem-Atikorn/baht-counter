@@ -1,0 +1,42 @@
+{
+  "image": "web_008.jpg",
+  "image_size": [
+    900,
+    733
+  ],
+  "coins": [
+    {
+      "center_xy": [
+        617.5,
+        506.7
+      ],
+      "radius_px": 141.9,
+      "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        243.8,
+        461.3
+      ],
+      "radius_px": 124.6,
+      "coin_type": "THB_2"
+    },
+    {
+      "center_xy": [
+        588.8,
+        156.2
+      ],
+      "radius_px": 118.9,
+      "coin_type": "THB_2"
+    },
+    {
+      "center_xy": [
+        248.6,
+        150.6
+      ],
+      "radius_px": 110.4,
+      "coin_type": "THB_1"
+    }
+  ],
+  "notes": ""
+}
