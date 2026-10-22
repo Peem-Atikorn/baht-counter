@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app import main
 from app.main import app
@@ -27,6 +28,18 @@ def upload(data: bytes, content_type="image/png", filename="coins.png"):
 
 def create_analysis(filename="coins.png") -> dict:
     return upload(png_bytes(), filename=filename).json()
+
+
+def jpeg_bytes_with_orientation(w: int, h: int, orientation: int | None = None) -> bytes:
+    img = Image.new("RGB", (w, h), color=(200, 150, 100))
+    buf = io.BytesIO()
+    if orientation is not None:
+        exif = img.getexif()
+        exif[main.ORIENTATION_TAG] = orientation
+        img.save(buf, format="JPEG", exif=exif.tobytes())
+    else:
+        img.save(buf, format="JPEG")
+    return buf.getvalue()
 
 
 def test_health():
@@ -54,12 +67,29 @@ def test_create_and_get_analysis():
 
 
 def test_create_analysis_returns_server_timing():
-    """header Server-Timing บอกเวลาแต่ละขั้นของ request นี้โดยเฉพาะ ไม่ปนกับผลเก่า (รีวิว PR #37 ข้อ 1)"""
+    """header Server-Timing บอกเวลาแต่ละขั้นของ request นี้โดยเฉพาะ ไม่ปนกับผลเก่า (รีวิว PR #37 ข้อ 1)
+    มีขั้น decode ด้วย (รีวิว PR #39 ข้อ 4) ไม่งั้นเวลาถอดรหัสภาพไปปนอยู่ใน "เครือข่าย/อื่นๆ" ของ bench.py"""
     r = upload(png_bytes())
     assert r.status_code == 201
     stages = parse_server_timing(r.headers["server-timing"])
-    assert set(stages) == {"preprocess", "detection", "classification", "save"}
+    assert set(stages) == {"decode", "preprocess", "detection", "classification", "save"}
     assert all(dur_sec >= 0 for dur_sec in stages.values())
+
+
+def test_decode_large_jpeg_is_downscaled():
+    """ภาพ JPEG ความละเอียดสูงถอดรหัสแบบย่อ ไม่เต็มความละเอียด (รีวิว PR #39 ข้อ 2, 3) — ลดหน่วยความจำ
+    ตอนถอดรหัสจากหลักร้อย MB เหลือหลักสิบ MB ต่อ request (ดู docs/backend.md) แต่ยังคืน original_size เดิม"""
+    data = jpeg_bytes_with_orientation(4284, 5712)
+    image, original_size = main.decode_image(data)
+    assert original_size == (4284, 5712)
+    assert max(image.shape[:2]) <= main.DECODE_LONG_SIDE
+
+
+def test_decode_respects_exif_rotation_for_original_size():
+    """orientation 5–8 สลับกว้าง/สูงของภาพต้นฉบับ — ต้องอ่านจาก EXIF ก่อนย่อ ไม่ใช่จากขนาดไฟล์ดิบ"""
+    data = jpeg_bytes_with_orientation(4000, 3000, orientation=6)
+    _, original_size = main.decode_image(data)
+    assert original_size == (3000, 4000)
 
 
 def test_server_timing_omits_stages_not_run(monkeypatch):
