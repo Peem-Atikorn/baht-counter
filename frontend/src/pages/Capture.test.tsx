@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import Capture from './Capture'
+import { createAnalysis } from '../api/client'
 
 vi.mock('../api/client', () => ({ createAnalysis: vi.fn() }))
 vi.mock('../components/Camera', () => ({
@@ -80,4 +81,62 @@ describe('ถ่ายและอัปโหลดภาพ', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกกล้อง' }))
     expect(screen.queryByRole('button', { name: 'ยกเลิกกล้อง' })).toBeNull()
   })
+})
+
+it.each([
+  ['coins.heic', 'image/heic', 'image/heic'],
+  ['coins.heif', 'image/heif', 'image/heif'],
+  ['COINS.HEIC', '', 'image/heic'],
+  ['coins.heif', 'application/octet-stream', 'image/heif'],
+])('ส่งไฟล์ %s ต้นฉบับได้แม้พรีวิวไม่ได้ (%s)', async (name, type, expectedType) => {
+  const file = new File(['original bytes'], name, { type })
+  vi.mocked(createAnalysis)
+    .mockRejectedValueOnce(new Error('ลองใหม่อีกครั้ง'))
+    .mockResolvedValueOnce({ analysis_id: 'heic-result' } as Awaited<
+      ReturnType<typeof createAnalysis>
+    >)
+  const view = render(
+    <MemoryRouter>
+      <Capture />
+      <Location />
+    </MemoryRouter>,
+  )
+  const input = view.container.querySelector('input[type="file"]')!
+  expect(input.getAttribute('accept')).toContain('.heic')
+  expect(input.getAttribute('accept')).toContain('image/heif')
+  fireEvent.change(input, { target: { files: [file] } })
+  fireEvent.error(screen.getByAltText('ภาพที่เลือก'))
+  expect(screen.getByText(/กด “ใช้รูปนี้” เพื่อส่งไฟล์ต้นฉบับ/)).toBeTruthy()
+  expect(screen.queryByAltText('ภาพที่เลือก')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'ใช้รูปนี้' }))
+  await screen.findByRole('alert')
+  expect(screen.getByRole('alert').textContent).toContain('ลองใหม่อีกครั้ง')
+  const sent = vi.mocked(createAnalysis).mock.calls[0][0] as File
+  expect(sent.name).toBe(name)
+  expect(sent.type).toBe(expectedType)
+  expect(sent.size).toBe(file.size)
+  // ข้อผิดพลาดจาก backend ต้องเก็บไฟล์ไว้ให้ลองใหม่ได้
+  fireEvent.click(screen.getByRole('button', { name: 'ใช้รูปนี้' }))
+  await waitFor(() =>
+    expect(screen.getByLabelText('ที่อยู่ปัจจุบัน').textContent).toBe('/result/heic-result'),
+  )
+  expect(vi.mocked(createAnalysis).mock.calls[1][0]).toBe(sent)
+})
+
+it('เลือก JPEG ใหม่หลังพรีวิว HEIC ไม่ได้แล้วแสดงภาพใหม่ตามปกติ', () => {
+  const view = render(
+    <MemoryRouter>
+      <Capture />
+    </MemoryRouter>,
+  )
+  const input = view.container.querySelector('input[type="file"]')!
+  fireEvent.change(input, {
+    target: { files: [new File(['heic'], 'a.heic', { type: 'image/heic' })] },
+  })
+  fireEvent.error(screen.getByAltText('ภาพที่เลือก'))
+  fireEvent.change(input, {
+    target: { files: [new File(['jpeg'], 'b.jpg', { type: 'image/jpeg' })] },
+  })
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(screen.getByAltText('ภาพที่เลือก')).toBeTruthy()
 })

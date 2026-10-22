@@ -63,7 +63,9 @@ const COIN_TYPES: CoinTypeInfo[] = [
 const store = new Map<string, { response: AnalysisResponse; url: string; createdAt: string }>()
 
 async function imageSize(blob: Blob): Promise<[number, number]> {
-  const bitmap = await createImageBitmap(blob)
+  const bitmap = await createImageBitmap(blob).catch(() => {
+    throw new Error('โหมดทดลองอ่านภาพนี้ไม่ได้ กรุณาใช้ JPEG, PNG หรือ WebP หรือลองใหม่กับระบบจริง')
+  })
   const size: [number, number] = [bitmap.width, bitmap.height]
   bitmap.close()
   return size

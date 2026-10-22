@@ -28,6 +28,14 @@
       ],
       "radius_px": 486.8,
       "coin_type": "THB_10"
+    },
+    {
+      "center_xy": [
+        3979.8,
+        149.0
+      ],
+      "radius_px": 410.9,
+      "coin_type": "THB_5"
     }
   ],
   "notes": ""

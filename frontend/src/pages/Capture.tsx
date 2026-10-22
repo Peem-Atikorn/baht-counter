@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createAnalysis } from '../api/client'
 import Camera from '../components/Camera'
 import Icon from '../components/Icon'
-import { ACCEPTED_TYPES, validateImage } from '../lib/image'
+import { IMAGE_ACCEPT, normalizeImage, validateImage } from '../lib/image'
 
-type Preview = { image: Blob; url: string; from: 'camera' | 'upload' }
+type Preview = { image: Blob; url: string; from: 'camera' | 'upload'; failed?: boolean }
 
 export default function Capture() {
   const navigate = useNavigate()
@@ -38,13 +38,16 @@ export default function Capture() {
     const problem = validateImage(image)
     if (problem) return setError(problem)
     setError(null)
-    setPreview({ image, url: URL.createObjectURL(image), from })
+    const original = normalizeImage(image)
+    setPreview({ image: original, url: URL.createObjectURL(original), from })
   }, [])
 
   // วางภาพจากคลิปบอร์ด (Ctrl+V)
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
-      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      const file = [...(e.clipboardData?.files ?? [])].find(
+        (f) => f.type.startsWith('image/') || /\.hei[cf]$/i.test(f.name),
+      )
       if (file) choose(file, 'upload')
     }
     window.addEventListener('paste', onPaste)
@@ -116,11 +119,27 @@ export default function Capture() {
 
       {preview ? (
         <div className="space-y-3">
-          <img
-            src={preview.url}
-            alt="ภาพที่เลือก"
-            className="max-h-[60vh] w-full rounded-xl bg-surface-muted object-contain"
-          />
+          {preview.failed ? (
+            <div role="status" className="rounded-xl bg-surface-muted p-6 text-center">
+              <Icon name="upload" className="mx-auto mb-3" />
+              <p>เบราว์เซอร์เปิดภาพตัวอย่างนี้ไม่ได้</p>
+              <p className="mt-2 text-sm text-copy-muted">
+                กด “ใช้รูปนี้” เพื่อส่งไฟล์ต้นฉบับให้นับเหรียญ หรือเลือกภาพใหม่
+              </p>
+            </div>
+          ) : (
+            <img
+              key={preview.url}
+              src={preview.url}
+              alt="ภาพที่เลือก"
+              onError={() =>
+                setPreview((current) =>
+                  current?.url === preview.url ? { ...current, failed: true } : current,
+                )
+              }
+              className="max-h-[60vh] w-full rounded-xl bg-surface-muted object-contain"
+            />
+          )}
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={retake}
@@ -168,14 +187,14 @@ export default function Capture() {
           <p className="hidden text-sm text-slate-500 sm:block">
             หรือลากไฟล์มาวางที่นี่ หรือกด Ctrl+V เพื่อวางภาพที่คัดลอกไว้
           </p>
-          <p className="text-xs text-slate-500">JPEG, PNG หรือ WebP · ไม่เกิน 15 MB</p>
+          <p className="text-xs text-slate-500">JPEG, PNG, WebP, HEIC หรือ HEIF · ไม่เกิน 15 MB</p>
         </div>
       )}
 
       <input
         ref={uploadInput}
         type="file"
-        accept={ACCEPTED_TYPES.join(',')}
+        accept={IMAGE_ACCEPT}
         hidden
         onChange={(e) => onFileInput(e, 'upload')}
       />
