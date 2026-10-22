@@ -1,13 +1,28 @@
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024
-// ไม่รับ HEIC: backend ยังอ่านไม่ได้ และเมื่อไม่ระบุ HEIC ใน accept, Safari บน iPhone จะแปลงเป็น JPEG ให้เอง
-export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+export const IMAGE_ACCEPT = [...ACCEPTED_TYPES, '.heic', '.heif'].join(',')
+
+/** บางเครื่องไม่ระบุ MIME ของ HEIC จึงใช้ชื่อไฟล์เฉพาะเมื่อ MIME ว่างหรือเป็น binary */
+function imageType(file: Blob): string {
+  if ((!file.type || file.type === 'application/octet-stream') && file instanceof File) {
+    if (/\.heic$/i.test(file.name)) return 'image/heic'
+    if (/\.heif$/i.test(file.name)) return 'image/heif'
+  }
+  return file.type
+}
+
+/** คงชื่อและ bytes ต้นฉบับ เปลี่ยนเฉพาะ MIME ที่ส่งให้ backend */
+export function normalizeImage(file: Blob): Blob {
+  const type = imageType(file)
+  return type !== file.type && file instanceof File
+    ? new File([file], file.name, { type, lastModified: file.lastModified })
+    : file
+}
 
 /** คืนข้อความภาษาไทยถ้าไฟล์ใช้ไม่ได้ */
 export function validateImage(file: Blob): string | null {
-  if (!ACCEPTED_TYPES.includes(file.type)) {
-    return file.type === 'image/heic' || file.type === 'image/heif'
-      ? 'ยังไม่รองรับไฟล์ HEIC กรุณาแปลงเป็น JPEG หรือถ่ายผ่านปุ่ม "ถ่ายรูป"'
-      : 'รองรับเฉพาะไฟล์ภาพ JPEG, PNG หรือ WebP'
+  if (!ACCEPTED_TYPES.includes(imageType(file))) {
+    return 'รองรับเฉพาะไฟล์ภาพ JPEG, PNG, WebP, HEIC หรือ HEIF'
   }
   if (file.size > MAX_UPLOAD_BYTES) return 'ไฟล์ใหญ่เกิน 15 MB'
   return null

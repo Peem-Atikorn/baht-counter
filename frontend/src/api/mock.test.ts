@@ -52,3 +52,10 @@ it('โหมดทดลองเพิ่ม แก้ ลบ และเร�
     0,
   )
 })
+
+it('โหมดทดลองแจ้งทางเลือกเมื่อเบราว์เซอร์อ่าน HEIC ไม่ได้', async () => {
+  vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('decode failed')))
+  await expect(mock.createAnalysis(new Blob(['heic'], { type: 'image/heic' }))).rejects.toThrow(
+    'โหมดทดลองอ่านภาพนี้ไม่ได้',
+  )
+})
