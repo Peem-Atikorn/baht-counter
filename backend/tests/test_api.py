@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.main import app
+from scripts.bench import parse_server_timing
 
 client = TestClient(app)
 
@@ -52,22 +53,13 @@ def test_create_and_get_analysis():
     assert r2.json() == body
 
 
-def _server_timing_stages(header: str) -> dict[str, float]:
-    stages = {}
-    for entry in header.split(","):
-        name, _, rest = entry.strip().partition(";")
-        if "dur=" in rest:
-            stages[name] = float(rest.split("dur=")[1])
-    return stages
-
-
 def test_create_analysis_returns_server_timing():
     """header Server-Timing บอกเวลาแต่ละขั้นของ request นี้โดยเฉพาะ ไม่ปนกับผลเก่า (รีวิว PR #37 ข้อ 1)"""
     r = upload(png_bytes())
     assert r.status_code == 201
-    stages = _server_timing_stages(r.headers["server-timing"])
+    stages = parse_server_timing(r.headers["server-timing"])
     assert set(stages) == {"preprocess", "detection", "classification", "save"}
-    assert all(dur_ms >= 0 for dur_ms in stages.values())
+    assert all(dur_sec >= 0 for dur_sec in stages.values())
 
 
 def test_server_timing_omits_stages_not_run(monkeypatch):
@@ -76,7 +68,7 @@ def test_server_timing_omits_stages_not_run(monkeypatch):
     monkeypatch.setattr(main.pipeline.detection, "mock_detect_coins", lambda pre: [])
     r = upload(png_bytes())
     assert r.status_code == 201
-    stages = _server_timing_stages(r.headers["server-timing"])
+    stages = parse_server_timing(r.headers["server-timing"])
     assert "preprocess" in stages
     assert "classification" not in stages
 
