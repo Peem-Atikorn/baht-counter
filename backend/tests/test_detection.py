@@ -429,3 +429,40 @@ def test_segment_bounded_fill_holes():
     assert filled[50, 50] == 255
     # รูใหญ่ตรงกลางกรอบต้องไม่ถูกเติม
     assert filled[100, 100] == 0
+
+
+def test_fit_radius_continuous_weighting():
+    """ทดสอบว่าการคำนวณรัศมีมีความต่อเนื่องตาม aspect ratio โดยไม่เกิดการกระโดดกะทันหัน"""
+    from modules.detection.fit import extract_coins_from_markers
+
+    radii = []
+    aspects = [0.75, 0.80, 0.85, 0.87, 0.88, 0.89, 0.90, 0.95]
+    for asp in aspects:
+        mask = np.zeros((200, 200), dtype=np.uint8)
+        cv2.ellipse(mask, (100, 100), (40, int(round(40 * asp))), 0, 0, 360, 255, -1)
+        markers = np.ones((200, 200), dtype=np.int32)
+        markers[mask > 0] = 2
+        coins = extract_coins_from_markers(markers, clean_mask=mask, filter_relative_size=False)
+        assert len(coins) == 1
+        radii.append(coins[0].radius_px)
+
+    diffs = [abs(radii[i + 1] - radii[i]) for i in range(len(radii) - 1)]
+    # ผลต่างระหว่างแต่ละขั้นที่ aspect ใกล้เคียงกันต้องต่อเนื่อง (ไม่มีการกระโดด > 2 px)
+    assert max(diffs) < 2.0
+
+
+def test_apply_watershed_roi_cropped():
+    """ทดสอบว่า watershed แบบตัด ROI สามารถตัดแบ่งกลุ่มเหรียญที่ชิดกันได้อย่างถูกต้อง"""
+    from modules.detection.watershed import apply_watershed
+
+    mask = np.zeros((300, 300), dtype=np.uint8)
+    cv2.circle(mask, (100, 150), 40, 255, -1)
+    cv2.circle(mask, (170, 150), 40, 255, -1)
+    image = np.full((300, 300, 3), 128, dtype=np.uint8)
+    image[mask > 0] = [200, 200, 200]
+
+    markers, dist = apply_watershed(image, mask)
+    labels = np.unique(markers)
+    # ต้องได้ 2 markers แยกสำหรับเหรียญ 2 วง (label >= 2)
+    coin_labels = labels[labels >= 2]
+    assert len(coin_labels) == 2
