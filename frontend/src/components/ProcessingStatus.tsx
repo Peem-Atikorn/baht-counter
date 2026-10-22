@@ -14,7 +14,6 @@ export default function ProcessingStatus() {
   return (
     <div
       role="status"
-      aria-label="สถานะการนับเหรียญ"
       aria-atomic="true"
       className="flex items-start gap-3 rounded-xl bg-surface-muted p-4"
     >
