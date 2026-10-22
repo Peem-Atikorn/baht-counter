@@ -52,6 +52,35 @@ def test_create_and_get_analysis():
     assert r2.json() == body
 
 
+def _server_timing_stages(header: str) -> dict[str, float]:
+    stages = {}
+    for entry in header.split(","):
+        name, _, rest = entry.strip().partition(";")
+        if "dur=" in rest:
+            stages[name] = float(rest.split("dur=")[1])
+    return stages
+
+
+def test_create_analysis_returns_server_timing():
+    """header Server-Timing บอกเวลาแต่ละขั้นของ request นี้โดยเฉพาะ ไม่ปนกับผลเก่า (รีวิว PR #37 ข้อ 1)"""
+    r = upload(png_bytes())
+    assert r.status_code == 201
+    stages = _server_timing_stages(r.headers["server-timing"])
+    assert set(stages) == {"preprocess", "detection", "classification", "save"}
+    assert all(dur_ms >= 0 for dur_ms in stages.values())
+
+
+def test_server_timing_omits_stages_not_run(monkeypatch):
+    """ไม่พบเหรียญ (detection คืนว่าง) -> pipeline จบก่อนถึง classification ต้องไม่มีขั้นนั้นใน header เลย
+    (ไม่ใช่ dur=0) ตรงกับที่ pipeline.run คืน timings เฉพาะขั้นที่รันจริง"""
+    monkeypatch.setattr(main.pipeline.detection, "mock_detect_coins", lambda pre: [])
+    r = upload(png_bytes())
+    assert r.status_code == 201
+    stages = _server_timing_stages(r.headers["server-timing"])
+    assert "preprocess" in stages
+    assert "classification" not in stages
+
+
 def test_create_analysis_persists_across_fresh_client():
     """เก็บใน SQLite + storage/ จริง ไม่ใช่ตัวแปรในหน่วยความจำ — ไคลเอนต์ใหม่ (จำลองรีสตาร์ท) ต้องยังอ่านได้"""
     body = create_analysis()
@@ -216,6 +245,21 @@ def test_add_coin_non_numeric_xy_422():
     body = create_analysis()
     r = client.post(f"/api/analyses/{body['analysis_id']}/coins", json={"xy": ["a", "b"]})
     assert r.status_code == 422
+
+
+def test_add_coin_outside_image_422():
+    """รีวิว PR #37 ข้อ 2: xy นอกภาพ (รวมขอบขวา/ล่างพอดี ซึ่งไม่ใช่พิกัดที่มีจริงเพราะนับจาก 0) ต้องไม่ถูกบันทึก"""
+    body = create_analysis()
+    aid = body["analysis_id"]
+    before_count = len(body["result"]["coins"])
+    w, h = body["result"]["image_size"]
+
+    for xy in ([99999.0, 99999.0], [-5.0, -5.0], [float(w), 0.0]):
+        r = client.post(f"/api/analyses/{aid}/coins", json={"xy": xy})
+        assert r.status_code == 422, xy
+
+    after = client.get(f"/api/analyses/{aid}").json()
+    assert len(after["result"]["coins"]) == before_count
 
 
 def test_added_coin_with_fake_radius_is_not_used_as_anchor():

@@ -90,20 +90,33 @@ raw/{analysis_id}{นามสกุล}  # ไฟล์ภาพต้นฉบ
 | `GET /api/analyses/{id}` | `test_create_and_get_analysis`, `test_create_analysis_persists_across_fresh_client` | `test_unknown_analysis_404` |
 | `GET /api/analyses/{id}/images/{name}` | `test_images_are_served` | `test_images_are_served` (ชื่อภาพไม่มี, 404), `test_image_of_unknown_analysis_404` (analysis ไม่มี, 404) |
 | `PUT /api/analyses/{id}/coins/{coin_id}` | `test_update_coin_sets_user_edited_and_recomputes_scale`, `test_update_coin_keeps_previously_edited_coin`, `test_update_coin_to_unknown_does_not_500`, `test_update_coin_to_unknown_after_anchor_still_200` | `test_update_unknown_coin_404`, `test_update_coin_unknown_analysis_404`, `test_update_coin_invalid_coin_type_422` |
-| `POST /api/analyses/{id}/coins` | `test_add_coin_needs_confirmation_until_typed`, `test_added_coin_with_fake_radius_is_not_used_as_anchor` | `test_add_coin_unknown_analysis_404`, `test_add_coin_missing_xy_422`, `test_add_coin_non_numeric_xy_422` |
+| `POST /api/analyses/{id}/coins` | `test_add_coin_needs_confirmation_until_typed`, `test_added_coin_with_fake_radius_is_not_used_as_anchor` | `test_add_coin_unknown_analysis_404`, `test_add_coin_missing_xy_422`, `test_add_coin_non_numeric_xy_422`, `test_add_coin_outside_image_422` |
 | `DELETE /api/analyses/{id}/coins/{coin_id}` | `test_delete_coin_recomputes_total`, `test_delete_last_coin_leaves_failed_not_zero` | `test_delete_unknown_coin_404` |
 | `GET /api/history` | `test_history_lists_newest_first` | `test_history_rejects_invalid_limit` |
 | `GET /api/analyses/{id}/export` | `test_export_json_and_csv` | `test_export_unknown_analysis_404`, `test_export_invalid_format_422` |
 | `GET /api/labels/export` | `test_labels_export_has_unique_names_and_raw_images` | `test_labels_export_empty_is_404` |
 | `GET /api/stats` | `test_stats_reports_edit_count` | `test_stats_before_any_analysis_is_200_not_500` (DB ว่าง ต้องตอบ 200 ค่า 0 ไม่ใช่ 500) |
 
-**พฤติกรรมที่พบแต่ยังไม่แก้ (รอยืนยัน):** `POST /api/analyses/{id}/coins` ด้วย `xy` ที่อยู่นอกภาพ (เช่น
-`[99999, 99999]`) ตอบ `201` เฉยๆ ไม่ตรวจพิกัดกับขนาดภาพ ยังไม่ได้เขียนเทสต์หรือแก้โค้ดส่วนนี้
+## Server-Timing — เวลาแต่ละขั้นต่อ request
+
+`POST /api/analyses` ตอบ header `Server-Timing` ตามรูปแบบมาตรฐาน (หน่วย ms) เช่น
+
+```text
+Server-Timing: preprocess;dur=46.1, detection;dur=460.3, classification;dur=5.8, save;dur=120.4
+```
+
+`save` คือเวลาตั้งแต่หลัง `pipeline.run()` จนบันทึก DB เสร็จ (เข้ารหัส PNG ภาพกลางทาง, `display.jpg`
+ของ HEIC, เขียนไฟล์, insert DB) ขั้นที่ไม่ได้รันจริง (เช่น `classification` ตอนไม่พบเหรียญ) จะไม่ถูกใส่ในนี้เลย
+(ไม่ใช่ `dur=0`) ดูค่านี้ได้ทั้งจาก `backend/scripts/bench.py` (อ่าน header ตรง แม่นกว่าคำนวณจาก `/api/stats`
+ที่เป็นค่าเฉลี่ยสะสมของทุกผลและทุกคนที่ใช้งานพร้อมกัน) หรือเปิด DevTools ของเบราว์เซอร์ → แท็บ Network →
+เลือก request `POST /api/analyses` → แท็บ Timing
 
 ## ผลวัดเวลาบนเซิร์ฟเวอร์จริง
 
 วัดวันที่ 2026-10-22 ด้วย `backend/scripts/bench.py --repeat 3` บน commit `5372fa8` (ล่าสุดของ `develop`
-ตอนวัด) แผน **Render Free** (0.1 CPU, 512MB RAM, ไม่มี persistent disk) เทียบกับในเครื่อง (`docker compose
+ตอนวัด) **ก่อน PR #36 merge** (ส่วนที่ 2 เปลี่ยน detection: ย่อพื้นหลัง 16x, opening ใหญ่ขึ้น) — ตัวเลข
+`detection` ด้านล่างอาจไม่ตรงกับโค้ดปัจจุบันแล้ว จะวัดใหม่หลัง PR #36 merge (ดูหมายเหตุท้ายหัวข้อ) แผน
+**Render Free** (0.1 CPU, 512MB RAM, ไม่มี persistent disk) เทียบกับในเครื่อง (`docker compose
 up --build`) เป็นค่าอ้างอิง ใช้ภาพทั้ง 5 ภาพใน `data/samples/` (0.2–1.3MB, ความละเอียด 2880×2160 ถึง
 4284×5712) ไม่มีภาพไหนได้ 5xx/timeout ระหว่างวัด
 
