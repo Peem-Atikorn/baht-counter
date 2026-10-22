@@ -23,10 +23,18 @@ GLARE_S_MAX = 40       # แทบไม่มีสี = แสงสะท้�
 DARK_V_MAX = 40        # มืดจัด = เงาหรือร่องลาย
 MIN_PIXELS = 15
 
-# เกณฑ์แบ่งสี ค่าเริ่มต้น ต้องปรับด้วยชุดปรับระบบ (ดูค่า HSV ใน eval/run_eval.py --dump-colors)
-SILVER_S_MAX = 70      # ความอิ่มสีต่ำกว่านี้ = เงิน
-COPPER_H_MAX = 14      # H <= 14 หรือ >= 170 = ทองแดง (ส้มแดง)
-GOLD_H_MAX = 35        # 14 < H <= 35 = ทอง (เหลือง)
+# เกณฑ์แบ่งสี ปรับด้วยชุด tune (eval/run_eval.py --split tune --dump-colors, วงกลมจากป้ายกำกับ 474 เหรียญ)
+# - เหรียญเงินใต้ไฟห้องสีอุ่นอมเหลือง S มัธยฐาน 60 p95 ≈ 110 ส่วนทองแดง S p5 ≈ 115, 2 บาท S p5 ≈ 98
+#   เงินมีมากกว่า 2 บาทมาก (237 vs 16) จึงตั้งเกณฑ์ให้เงินเกือบทั้งหมดผ่าน 2 บาทที่ S ต่ำจะถูกมองเป็นเงิน
+# - ทองแดง H p95 ≈ 18–19 ทอง/10 บาท H p5 ≈ 20–21
+# ชุด tune กลุ่มสีถูก 57% -> 93% (เงิน 92%, ทองแดง 95%, 2 บาท 75%, สองสี 100%)
+SILVER_S_MAX = 110     # ความอิ่มสีต่ำกว่านี้ = เงิน
+COPPER_H_MAX = 18      # H <= 18 หรือ >= 170 = ทองแดง (ส้มแดง)
+GOLD_H_MAX = 35        # 18 < H <= 35 = ทอง (เหลือง)
+# 10 บาท: ใจกลาง S / ขอบ S ชุด tune p5 = 1.48 เหรียญสีเดียวทุกชนิด p95 <= 1.10
+# ใช้อัตราส่วนแทนเกณฑ์ silver ของขอบ เพราะแสงอุ่นทำให้ขอบเงินของ 10 บาทอิ่มสีเกินเกณฑ์ (เดิม 10 บาทถูกแค่ 46%)
+# ไม่ต่ำกว่า 1.4 เพราะ 2 บาทที่ขอบซีดเพราะแสงสะท้อนได้ราว 1.3 (test_pale_gold_ring_is_not_bimetal)
+BIMETAL_S_RATIO = 1.4
 
 
 @dataclass
@@ -69,6 +77,14 @@ def label_hsv(hsv: tuple[float, float, float] | None) -> str:
     return "unknown"
 
 
+def _bimetal_by_ratio(inner, ring) -> bool:
+    """ใจกลางอิ่มสีกว่าขอบชัดเจนและใจกลางเป็นโทนทอง = 10 บาท แม้แสงอุ่นทำให้ขอบไม่ผ่านเกณฑ์ silver"""
+    if inner is None or ring is None:
+        return False
+    h, s, _ = inner
+    return COPPER_H_MAX < h <= GOLD_H_MAX and s >= BIMETAL_S_RATIO * max(ring[1], 1.0)
+
+
 def coin_color_features(hsv_image: np.ndarray, coin: Coin) -> ColorFeatures:
     # ภาพเอียงทำให้เหรียญเป็นวงรี ใช้วงกลมรัศมีครึ่งแกนสั้นซึ่งอยู่ในเหรียญเสมอ
     r = coin.radius_px
@@ -88,7 +104,7 @@ def coin_color_features(hsv_image: np.ndarray, coin: Coin) -> ColorFeatures:
     inner_label, ring_label = label_hsv(inner), label_hsv(ring)
 
     # สองสีเฉพาะเมื่อขอบเป็นสีเงินจริง ขอบ 2 บาทที่ซีดเพราะแสงสะท้อนยังเป็นสีทอง
-    if inner_label == "gold" and ring_label == "silver":
+    if inner_label == "gold" and ring_label == "silver" or _bimetal_by_ratio(inner, ring):
         group = "bimetal"
     elif inner_label == ring_label or ring_label == "unknown":
         group = inner_label
