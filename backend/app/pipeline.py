@@ -25,8 +25,8 @@ FALLBACK_RADIUS_FRACTION = 0.03  # ของด้านสั้นของภ
 
 
 def mock_stages() -> set[str]:
-    """COIN_USE_MOCK: "1" = mock ทุกโมดูล (ค่าเริ่มต้น), "0" = ใช้ของจริงทั้งหมด, หรือรายชื่อคั่นด้วย comma"""
-    raw = os.getenv("COIN_USE_MOCK", "1").strip()
+    """COIN_USE_MOCK: "0" = ใช้ของจริงทั้งหมด (ค่าเริ่มต้น), "1" = mock ทุกโมดูล, หรือรายชื่อคั่นด้วย comma"""
+    raw = os.getenv("COIN_USE_MOCK", "0").strip()
     if raw == "1":
         return set(STAGES)
     if raw in ("", "0"):

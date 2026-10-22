@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -14,8 +15,8 @@ from typing import Literal
 import cv2
 import numpy as np
 import pillow_heif
-from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, HTTPException, Response, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -91,6 +92,13 @@ def encode_display_jpeg(image: np.ndarray) -> bytes:
     return buf.tobytes()
 
 
+def format_server_timing(timings_sec: dict[str, float]) -> str:
+    """Server-Timing header ตามมาตรฐาน (หน่วย ms) ขั้นที่ไม่มีคีย์ใน timings_sec จะไม่ถูกใส่ (ไม่ใช่ 0)
+    ดูได้ใน DevTools ของเบราว์เซอร์ → Network → เลือก request → แท็บ Timing (ดู docs/backend.md)
+    """
+    return ", ".join(f"{stage};dur={seconds * 1000:.1f}" for stage, seconds in timings_sec.items())
+
+
 def get_or_404(analysis_id: str) -> dict:
     record = db.get_analysis(analysis_id)
     if record is None:
@@ -163,7 +171,7 @@ def coin_types():
 
 # def ธรรมดา (ไม่ใช่ async) FastAPI จะรันใน threadpool งานประมวลผลภาพจึงไม่บล็อก request อื่น
 @app.post("/api/analyses", response_model=AnalysisResponse, status_code=201)
-def create_analysis(file: UploadFile):
+def create_analysis(file: UploadFile, response: Response):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(415, "รองรับเฉพาะไฟล์ JPEG, PNG, WebP หรือ HEIC")
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
@@ -173,6 +181,7 @@ def create_analysis(file: UploadFile):
     image = decode_image(data)
     result, debug, timings = pipeline.run(image)
 
+    t_save = time.perf_counter()
     analysis_id = uuid.uuid4().hex
     ext = EXT_BY_CONTENT_TYPE[file.content_type]
     storage.save_image(analysis_id, f"original{ext}", data)
@@ -185,6 +194,10 @@ def create_analysis(file: UploadFile):
         "debug_images": {name: f"/api/analyses/{analysis_id}/images/{name}" for name in debug},
     })
     db.insert_analysis(analysis_id, result, timings, file.filename, ext)
+    save_sec = time.perf_counter() - t_save
+
+    # Server-Timing: เวลาแต่ละขั้นจริงของ request นี้ ไม่ปนกับผลเก่าหรือ request อื่น (ดู docs/backend.md)
+    response.headers["Server-Timing"] = format_server_timing({**timings, "save": save_sec})
     return AnalysisResponse(analysis_id=analysis_id, result=result)
 
 
@@ -245,6 +258,11 @@ def update_coin(analysis_id: str, coin_id: int, body: CoinUpdate):
 def add_coin(analysis_id: str, body: CoinCreate):
     record = get_or_404(analysis_id)
     coins = record["result"].coins
+
+    w, h = record["result"].image_size
+    x, y = body.xy
+    if not (0 <= x < w and 0 <= y < h):
+        raise HTTPException(422, "พิกัดอยู่นอกภาพ")
 
     image = load_original(record)
     located = pipeline.locate_added_coin(image, body.xy, coins)

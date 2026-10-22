@@ -25,6 +25,12 @@ def test_pipeline_failure_is_reported(monkeypatch):
     assert "preprocess" in timings
 
 
+def test_mock_stages_empty_when_env_unset(monkeypatch):
+    """ไม่ตั้ง COIN_USE_MOCK เลย (เหมือน docker compose/Render ที่ไม่ได้ override) = ของจริงทั้งหมด"""
+    monkeypatch.delenv("COIN_USE_MOCK", raising=False)
+    assert pipeline.mock_stages() == set()
+
+
 def test_mock_stage_typo_is_rejected(monkeypatch):
     monkeypatch.setenv("COIN_USE_MOCK", "preprocess,detect")
     with pytest.raises(ValueError, match="detect"):

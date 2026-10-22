@@ -6,6 +6,14 @@
 
 แผนงานฉบับเต็มอยู่ที่ [`docs/plan.md`](docs/plan.md)
 
+## ลองใช้เลย
+
+**https://baht-counter.onrender.com** — เปิดจากมือถือหรือคอมก็ได้ (HTTPS ใช้กล้องในหน้าเว็บได้จริง)
+
+- เปิดครั้งแรกอาจช้า ~30–60 วินาที เพราะ Render (แผน Free) ปล่อยให้เซิร์ฟเวอร์ sleep เมื่อไม่มีคนใช้ รอได้เลย ไม่ใช่ error
+- **ข้อมูลหายทุกครั้งที่ deploy ใหม่หรือเซิร์ฟเวอร์ sleep แล้วตื่น** (แผน Free ไม่มี disk ถาวร)
+- **ไม่มีระบบ login** — ใครก็เปิดดูผลและภาพของทุกคนได้ผ่าน `/api/history` **อย่าอัปโหลดภาพส่วนตัว** ใช้ภาพเหรียญเปล่าๆ พอ
+
 ---
 
 ## ระบบทำอะไร
@@ -176,6 +184,12 @@ repo มี [`AGENTS.md`](AGENTS.md) บอก AI เรื่องโปรเ
 
 ## การติดตั้งและรัน
 
+### สิ่งที่ต้องติดตั้ง
+
+เลือกทางเดียวพอ:
+- **Docker** (แนะนำ) — `docker compose up --build` คำสั่งเดียว ไม่ต้องติดตั้ง Python/Node เอง
+- หรือจะรันแยกเพื่อพัฒนา ต้องมี **Python 3.11** และ **Node `^22.22.2` หรือ `^24.15.0`** (`jsdom` ของ vitest ต้องการเวอร์ชันนี้)
+
 ### รันทั้งระบบด้วย Docker (แนะนำ)
 
 ```bash
@@ -201,8 +215,8 @@ py -3.11 -m venv .venv                 # macOS/Linux: python3.11 -m venv .venv
 
 - เอกสาร API: http://localhost:8000/docs
 - เทสต์: `.venv/Scripts/python -m pytest`
-- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ค่าเริ่มต้นในโค้ดยังเป็น `1` = mock ทั้งหมด ต้องตั้งเองเป็น
-  `0` เพื่อใช้ของจริง) ตอนนี้โมดูลจริงครบทั้ง 3 ขั้นแล้ว (`preprocess`, `detection`, `classification`) —
+- สลับโมดูลจริง/mock ด้วย env `COIN_USE_MOCK` (ค่าเริ่มต้นในโค้ดเป็น `0` = ของจริงทั้งหมดแล้ว ตั้งเป็น `1`
+  เพื่อ mock ทุกขั้นตอนดีบัก) โมดูลจริงครบทั้ง 3 ขั้นแล้ว (`preprocess`, `detection`, `classification`) —
   `detection` ของจริงยังพลาดกับภาพถ่ายจริงบางแบบ (ดู issue #2) ควรเทสต์ด้วยภาพจริงเสมอ เพราะผล mock
   ทำให้เข้าใจผิดว่าระบบพร้อมแล้ว ดีบักเฉพาะขั้นเดียวได้ด้วยชื่อขั้นคั่น comma เช่น `COIN_USE_MOCK=detection`
 
@@ -219,13 +233,47 @@ npm run dev
 - เทสต์: `npm test` (vitest), lint: `npm run lint`
 - schema ฝั่ง backend เปลี่ยน: รัน backend แล้ว `npm run gen:api` เพื่อสร้าง type ใหม่ใน `src/api/schema.d.ts`
 
+## ประเมินผลและวัดเวลา
+
+**ประเมินความแม่น** (`eval/run_eval.py`, ส่วนที่ 3 เป็นเจ้าของ) รันจาก root ของ repo ด้วย venv ของ backend:
+
+```bash
+backend/.venv/Scripts/python eval/run_eval.py   # macOS/Linux: backend/.venv/bin/python
+```
+
+**ต้องมีชุดข้อมูลเต็มใน `data/raw/` ก่อนรันได้** (ไม่ได้ commit ใน git) มีแค่ `data/samples/` (5 ภาพ) แล้วรันไม่ได้
+ทุก `--split` เพราะสคริปต์คำนวณสเกลจากชุด `tune` ทั้งหมดก่อนเสมอ (`FileNotFoundError` ชี้ไปที่ `data/raw` หรือ
+`data/samples`) ถ้าต้องการชุดข้อมูลเต็มให้ถามส่วนที่ 1 (@Peem-Atikorn) ดูตัวเลือกอื่นได้ที่ docstring ของไฟล์
+(`--detector gt`, `--split`, `--dump-colors`)
+
+**วัดเวลาประมวลผล** (`backend/scripts/bench.py`, ส่วนที่ 4) เทียบเป้า < 2 วินาที/ภาพ อ่านจากภาพใน
+`data/samples/` จึงรันได้โดยไม่ต้องมีชุดข้อมูลเต็ม:
+
+```bash
+cd backend && .venv/Scripts/python scripts/bench.py                                   # เซิร์ฟเวอร์ในเครื่อง
+cd backend && .venv/Scripts/python scripts/bench.py --url https://baht-counter.onrender.com
+```
+
+เวลาแต่ละขั้นอ่านจาก header `Server-Timing` ของแต่ละ request ดูรายละเอียดและผลวัดล่าสุดใน
+[`docs/backend.md`](docs/backend.md)
+
+## Env ทั้งหมด
+
+| env | ค่าเริ่มต้น | ตั้งที่ไหน | ความหมาย |
+|---|---|---|---|
+| `COIN_USE_MOCK` | `0` (ของจริงทั้งหมด) | ไม่ตั้งก็ได้ (ตั้งเพื่อดีบัก) | `1` = mock ทุกขั้น หรือชื่อขั้นคั่น comma เช่น `detection` = mock เฉพาะขั้นนั้น ดู `backend/app/pipeline.py` |
+| `BAHT_DATA_DIR` | `storage/` (สัมพัทธ์) | `Dockerfile` ตั้งเป็น `/data` | ที่เก็บ SQLite + ภาพ |
+| `FRONTEND_DIST` | — | `Dockerfile` ตั้งเป็น `/app/frontend_dist` | path หน้าเว็บที่ build แล้วให้ backend เสิร์ฟ (Docker เท่านั้น ไม่ต้องตั้งตอนรันแยก backend/frontend) |
+| `PORT` | `8000` | Render/Railway ตั้งให้เอง | พอร์ตที่ backend ฟัง อ่านผ่าน `${PORT:-8000}` ใน `Dockerfile` |
+| `VITE_USE_MOCK` | — | ตั้งเองตอน dev frontend | `1` = ใช้ข้อมูลจำลองฝั่งเว็บ ไม่ต้องรัน backend |
+
 ## Deploy
 
 เว็บที่ deploy แล้ว (Render, แผน Free): **https://baht-counter.onrender.com**
 
-- `render.yaml` ที่ root คือ config ของ Blueprint — จะผูกกับ service `baht-counter` ที่สร้างไว้แล้วหลัง merge
-  PR #23 (Blueprint อ่านไฟล์นี้จาก branch `develop` ซึ่งยังไม่มีไฟล์นี้จนกว่าจะ merge)
-- **แก้ env ผ่าน `render.yaml` เท่านั้นหลังผูก Blueprint แล้ว** ค่าที่ sync จากไฟล์นี้ (เช่น `COIN_USE_MOCK`)
+- `render.yaml` ที่ root คือ config ของ Blueprint ผูกกับ service `baht-counter` แล้ว — deploy อัตโนมัติทุกครั้งที่
+  push เข้า branch `develop`
+- **แก้ env ผ่าน `render.yaml` เท่านั้น** ค่าที่ sync จากไฟล์นี้ (เช่น `COIN_USE_MOCK`)
   จะเขียนทับค่าใน Environment ของ dashboard ทุกครั้งที่มี Blueprint sync ส่วนค่าที่ไม่ได้ระบุในไฟล์ (เช่น
   `PORT`) ยังคงค่าเดิมใน dashboard ไว้ไม่ถูกลบ
 - แผน Free ไม่มี persistent disk: **ข้อมูลทั้งหมด (ผลการนับ + ภาพ) หายทุกครั้งที่ redeploy หรือ sleep แล้วตื่น**
@@ -235,3 +283,13 @@ npm run dev
   ภาพถ่ายจริงบางแบบ ดู issue #2)
 - **หน้าเว็บนี้ไม่มีระบบ login** `/api/history` แสดง `analysis_id` ของทุกรายการ ใครเปิดเว็บก็ไล่ดูผลและภาพ
   ของทุกคนได้ — อย่าทดสอบด้วยภาพส่วนตัว
+
+## แก้ปัญหาที่พบบ่อย
+
+| ปัญหา | วิธีแก้ |
+|---|---|
+| `docker compose up` บอกพอร์ต 8000 ถูกใช้แล้ว | มีโปรแกรมอื่นใช้พอร์ต 8000 อยู่ ปิดโปรแกรมนั้น หรือเปลี่ยน `ports:` ใน `docker-compose.yml` |
+| รัน backend ไม่ติดหลัง `git pull`/`merge` | ลืม `pip install -r requirements.txt` ใหม่ (เช่น เพิ่ม `pillow-heif` รองรับ HEIC) รันคำสั่งนี้ใหม่ใน venv |
+| `npm test`/`npm run dev` ของ frontend error เรื่อง `jsdom` | เวอร์ชัน Node ต่ำกว่า `^22.22.2`/`^24.15.0` เช็คด้วย `node --version` แล้วอัปเดต Node |
+| กดปุ่ม "ถ่ายรูป" แล้วกล้องเปิดไม่ติด | `getUserMedia` ใช้ได้เฉพาะ HTTPS หรือ `localhost` — เปิดผ่าน `http://<IP>` ธรรมดาใช้กล้องไม่ได้ ให้ใช้ `localhost` ตอนพัฒนา หรือเปิด URL ที่ deploy แล้ว (HTTPS) |
+| เว็บที่ deploy เปิดช้ามากครั้งแรก | เซิร์ฟเวอร์ sleep อยู่ (Render แผน Free) รอ ~30–60 วินาทีให้ตื่น ไม่ใช่ error |
