@@ -136,9 +136,11 @@ def detect_coin_at(pre: PreprocessResult, xy: tuple[float, float]) -> Coin | Non
                 (lcx, lcy), (d1, d2), angle = cv2.fitEllipse(cnt)
                 major = float(max(d1, d2))
                 minor = float(min(d1, d2))
-                if major <= 0 or (minor / major) < 0.50:
+                aspect = minor / major if major > 0 else 0.0
+                if major <= 0 or aspect < 0.50:
                     continue
-                r = major / 2.0
+                w = float(np.clip((aspect - 0.85) / (0.95 - 0.85), 0.0, 1.0))
+                r = w * ((major + minor) / 4.0) + (1.0 - w) * (major / 2.0)
                 ellipse = (major, minor, float(angle))
             except cv2.error:
                 (lcx, lcy), r = cv2.minEnclosingCircle(cnt)
