@@ -89,3 +89,24 @@ def test_summarize_row_some_missing_classification_stage():
     assert summary["stage_secs"]["preprocess"]["count"] == 3
     assert summary["stage_secs"]["classification"]["count"] == 2
     assert summary["stage_secs"]["classification"]["avg"] == pytest.approx(0.05)
+
+
+def test_summarize_row_total_not_inflated_when_one_request_missing_a_stage():
+    """"รวม" ต้องมาจากผลรวมต่อ request ก่อนแล้วค่อยเฉลี่ย ไม่ใช่ผลรวมของค่าเฉลี่ยแต่ละขั้น (รีวิว PR #39 ข้อ 5)
+    ถ้าเอาค่าเฉลี่ยแต่ละขั้นมาบวกกัน classification จะถูกเฉลี่ยจากฐานที่เล็กกว่า (count=2 ไม่ใช่ 3) ทำให้
+    "รวม" สูงเกินจริงกว่าที่ควรจะเป็น"""
+    with_classification = {"preprocess": 0.1, "detection": 0.5, "classification": 0.05}
+    without_classification = {"preprocess": 0.1, "detection": 0.5}
+    outcomes = [
+        _outcome(1.0, dict(with_classification)),
+        _outcome(1.0, dict(with_classification)),
+        _outcome(1.0, dict(without_classification)),
+    ]
+
+    summary = summarize_row(outcomes)
+
+    correct_total = (0.65 + 0.65 + 0.6) / 3  # รวมต่อ request ก่อน (0.65, 0.65, 0.6) แล้วค่อยเฉลี่ย
+    naive_buggy_total = 0.1 + 0.5 + 0.05  # ผลรวมของค่าเฉลี่ยแต่ละขั้น (classification เฉลี่ยจาก count=2) — ผิด
+
+    assert summary["avg_stage_total_sec"] == pytest.approx(correct_total)
+    assert summary["avg_stage_total_sec"] < naive_buggy_total

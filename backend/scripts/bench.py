@@ -24,7 +24,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 WAKEUP_TIMEOUT_SEC = 120
 TARGET_SERVER_SEC = 2.0
-STAGE_ORDER = ["preprocess", "detection", "classification", "save"]
+STAGE_ORDER = ["decode", "preprocess", "detection", "classification", "save"]
 CONTENT_TYPE_BY_SUFFIX = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -76,8 +76,12 @@ def summarize_row(outcomes: list[dict]) -> dict:
     คืน `stage_secs` เป็น `{ขั้น: {"avg": วินาทีเฉลี่ย, "count": จำนวน request ที่มีขั้นนี้}}` เพราะบาง request
     (เช่น preprocess ปฏิเสธ หรือไม่พบเหรียญ) ไม่มีบางขั้นเลย ไม่ควรเฉลี่ยเหมือนมีค่า 0
 
+    `avg_stage_total_sec` = เฉลี่ยของ "ผลรวมขั้นของ request นั้นๆ" (รวมก่อนแล้วค่อยเฉลี่ย) ไม่ใช่ผลรวมของค่า
+    เฉลี่ยแต่ละขั้น — ถ้า request บางอันไม่มีบางขั้น (เช่น classification ตอนไม่ครบ) เอาผลรวมของค่าเฉลี่ยแต่ละ
+    ขั้นมาบวกกันจะสูงเกินจริง (รีวิว PR #39 ข้อ 5) เพราะขั้นที่ไม่ครบถูกเฉลี่ยจากฐานที่เล็กกว่า n_usable
+
     ไม่ throw แม้ไม่มี request ที่ใช้ได้เลย (ทุกครั้งล้มเหลว หรือไม่มี header) — คืน `avg_request_sec`/
-    `avg_other_sec` เป็น `None` และ `stage_secs` เป็น dict ว่างแทน
+    `avg_other_sec`/`avg_stage_total_sec` เป็น `None` และ `stage_secs` เป็น dict ว่างแทน
     """
     usable = [o for o in outcomes if o.get("ok") and o.get("server_timing")]
     fail_count = sum(1 for o in outcomes if not o.get("ok"))
@@ -86,10 +90,12 @@ def summarize_row(outcomes: list[dict]) -> dict:
     stage_counts: dict[str, int] = {}
     request_secs: list[float] = []
     other_secs: list[float] = []
+    stage_total_secs: list[float] = []
     for o in usable:
         timing = o["server_timing"]
         request_secs.append(o["request_sec"])
         other_secs.append(o["request_sec"] - sum(timing.values()))
+        stage_total_secs.append(sum(timing.values()))
         for stage, seconds in timing.items():
             stage_sums[stage] = stage_sums.get(stage, 0.0) + seconds
             stage_counts[stage] = stage_counts.get(stage, 0) + 1
@@ -101,6 +107,7 @@ def summarize_row(outcomes: list[dict]) -> dict:
         "fail_count": fail_count,
         "avg_request_sec": (sum(request_secs) / n_usable) if n_usable else None,
         "avg_other_sec": (sum(other_secs) / n_usable) if n_usable else None,
+        "avg_stage_total_sec": (sum(stage_total_secs) / n_usable) if n_usable else None,
         "stage_secs": {
             stage: {"avg": stage_sums[stage] / stage_counts[stage], "count": stage_counts[stage]}
             for stage in stage_sums
@@ -253,7 +260,7 @@ def main() -> None:
         print("ไม่มี request ไหนสำเร็จและมี Server-Timing header เลย — วัดเวลาแต่ละขั้นไม่ได้")
         sys.exit(1)
 
-    totals = [sum(cell["avg"] for cell in row["summary"]["stage_secs"].values()) for row in timed_rows]
+    totals = [row["summary"]["avg_stage_total_sec"] for row in timed_rows]
     avg_total = sum(totals) / len(totals)
     print(f"เวลาประมวลผลฝั่งเซิร์ฟเวอร์เฉลี่ยต่อภาพ (รวมทุกขั้นจาก Server-Timing): {avg_total:.3f} วินาที")
     passed = "ผ่าน" if avg_total < TARGET_SERVER_SEC else "ไม่ผ่าน"
