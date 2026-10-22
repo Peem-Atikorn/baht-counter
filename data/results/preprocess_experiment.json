@@ -6,12 +6,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.548469387755102,
-      "det_recall": 0.4488517745302714,
-      "radius_err_mean_pct": 11.503173806518854,
+      "det_precision": 0.6703056768558951,
+      "det_recall": 0.6409185803757829,
+      "radius_err_mean_pct": 10.303203478936645,
       "color_group_acc": 0.5717299578059072,
       "coin_type_acc": 0.2721518987341772,
-      "preprocess_ms": 48.806814285940376
+      "preprocess_ms": 47.127735716501434
     },
     "he": {
       "images": 84,
@@ -19,12 +19,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.19423368740515934,
-      "det_recall": 0.267223382045929,
-      "radius_err_mean_pct": 12.76126426309423,
+      "det_precision": 0.22180451127819548,
+      "det_recall": 0.3695198329853862,
+      "radius_err_mean_pct": 12.536348249531965,
       "color_group_acc": 0.5717299578059072,
       "coin_type_acc": 0.2721518987341772,
-      "preprocess_ms": 49.131897616981796
+      "preprocess_ms": 48.00115952440094
     },
     "clahe": {
       "images": 84,
@@ -32,12 +32,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.41286307053941906,
-      "det_recall": 0.4154488517745303,
-      "radius_err_mean_pct": 11.499906095775282,
+      "det_precision": 0.5398550724637681,
+      "det_recall": 0.6221294363256785,
+      "radius_err_mean_pct": 9.934672496914338,
       "color_group_acc": 0.5717299578059072,
       "coin_type_acc": 0.2721518987341772,
-      "preprocess_ms": 49.405630951306584
+      "preprocess_ms": 48.66100833411716
     },
     "clahe+wb": {
       "images": 84,
@@ -45,12 +45,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.4127310061601643,
-      "det_recall": 0.4196242171189979,
-      "radius_err_mean_pct": 12.856511964348,
+      "det_precision": 0.5226860254083484,
+      "det_recall": 0.6012526096033403,
+      "radius_err_mean_pct": 9.887040175508382,
       "color_group_acc": 0.5991561181434599,
       "coin_type_acc": 0.27637130801687765,
-      "preprocess_ms": 105.94042142786618
+      "preprocess_ms": 101.82573333267578
     }
   },
   "web": {
@@ -60,12 +60,12 @@
       "reject_reasons": {
         "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย 480 พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง": 4
       },
-      "det_precision": 0.8214285714285714,
+      "det_precision": 0.7931034482758621,
       "det_recall": 0.15862068965517243,
-      "radius_err_mean_pct": 7.471280910063313,
+      "radius_err_mean_pct": 7.552926226526484,
       "color_group_acc": 0.734375,
       "coin_type_acc": 0.40625,
-      "preprocess_ms": 9.956012501788791
+      "preprocess_ms": 10.155537504033418
     },
     "he": {
       "images": 8,
@@ -73,12 +73,12 @@
       "reject_reasons": {
         "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย 480 พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง": 4
       },
-      "det_precision": 0.78125,
-      "det_recall": 0.1724137931034483,
-      "radius_err_mean_pct": 10.969457293850864,
+      "det_precision": 0.75,
+      "det_recall": 0.14482758620689656,
+      "radius_err_mean_pct": 10.673849838201354,
       "color_group_acc": 0.734375,
       "coin_type_acc": 0.40625,
-      "preprocess_ms": 10.431337504996918
+      "preprocess_ms": 10.08661250671139
     },
     "clahe": {
       "images": 8,
@@ -88,10 +88,10 @@
       },
       "det_precision": 0.7741935483870968,
       "det_recall": 0.16551724137931034,
-      "radius_err_mean_pct": 7.1000495753395,
+      "radius_err_mean_pct": 6.797458735931911,
       "color_group_acc": 0.734375,
       "coin_type_acc": 0.40625,
-      "preprocess_ms": 10.620950000884477
+      "preprocess_ms": 10.29572499464848
     },
     "clahe+wb": {
       "images": 8,
@@ -99,12 +99,12 @@
       "reject_reasons": {
         "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย 480 พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง": 4
       },
-      "det_precision": 0.7666666666666667,
+      "det_precision": 0.7931034482758621,
       "det_recall": 0.15862068965517243,
-      "radius_err_mean_pct": 6.542196452233201,
+      "radius_err_mean_pct": 6.617588573760674,
       "color_group_acc": 0.21875,
       "coin_type_acc": 0.21875,
-      "preprocess_ms": 27.731887505069608
+      "preprocess_ms": 26.7063999963284
     }
   }
 }
