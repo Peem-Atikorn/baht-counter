@@ -44,9 +44,11 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 # เป้าตาม docs/plan.md ส่วนที่ 1
 MIN_COINS_PER_TYPE = 80
+# เหรียญ 2 บาทสีทองหาไม่ได้ในชีวิตจริง ไม่ตั้งเป้า แต่รายงานความแม่นแยกในรายงาน
+RARE_TYPES = {"THB_2"}
 TARGET_TEAM_IMAGES = 150
 TARGET_WEB_IMAGES = 30
-MIN_BACKGROUNDS = 3
+# พื้นหลังไม่ตั้งขั้นต่ำ (หาโต๊ะไม้ไม่ได้) แสดงจำนวนเฉย ๆ
 MIN_LIGHTS = 2
 COINS_PER_IMAGE = (3, 30)
 
@@ -222,10 +224,14 @@ def check(data: Path) -> Report:
     for code in [*CODES, "unknown"]:
         if code == "unknown" and not per_type[code]:
             continue
-        mark = "" if code == "unknown" or per_type[code] >= MIN_COINS_PER_TYPE else " ⚠"
+        if code in RARE_TYPES:
+            mark = " †"
+        else:
+            mark = "" if code == "unknown" or per_type[code] >= MIN_COINS_PER_TYPE else " ⚠"
         lines.append(f"| {code} | {per_type[code]}{mark} | " + " | ".join(str(per_split[s][code]) for s in cols) + " |")
-    lines += ["", f"⚠ = ภาพจริงต่ำกว่าเป้า {MIN_COINS_PER_TYPE} เหรียญต่อชนิด (ไม่นับ synth)", ""]
-    for i, (what, need) in enumerate([("พื้นหลัง", MIN_BACKGROUNDS), ("แสง", MIN_LIGHTS), ("มุม", 2)]):
+    lines += ["", f"⚠ = ภาพจริงต่ำกว่าเป้า {MIN_COINS_PER_TYPE} เหรียญต่อชนิด (ไม่นับ synth)",
+              "† = เหรียญหายาก ไม่ตั้งเป้า รายงานความแม่นแยก", ""]
+    for i, (what, need) in enumerate([("พื้นหลัง", 1), ("แสง", MIN_LIGHTS), ("มุม", 2)]):
         seen = Counter(g[i] for g in groups)
         ok = "" if len(seen) >= need else f" ⚠ ต้องมีอย่างน้อย {need} แบบ"
         lines.append(f"- {what}: {dict(sorted(seen.items())) or '-'}{ok}")
