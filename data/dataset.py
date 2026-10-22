@@ -46,8 +46,9 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 MIN_COINS_PER_TYPE = 80
 # เหรียญ 2 บาทสีทองหาไม่ได้ในชีวิตจริง ไม่ตั้งเป้า แต่รายงานความแม่นแยกในรายงาน
 RARE_TYPES = {"THB_2"}
-TARGET_TEAM_IMAGES = 150
-TARGET_WEB_IMAGES = 30
+# ชุดข้อมูลสุดท้าย (หยุดเก็บภาพและล็อกชุด test เมื่อ PR #33 merge) เดิมตั้งไว้ ~150 / ~30
+TARGET_TEAM_IMAGES = 127
+TARGET_WEB_IMAGES = 8
 # พื้นหลังไม่ตั้งขั้นต่ำ (หาโต๊ะไม้ไม่ได้) แสดงจำนวนเฉย ๆ
 MIN_LIGHTS = 2
 COINS_PER_IMAGE = (3, 30)

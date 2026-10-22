@@ -142,7 +142,9 @@ def main(argv=None):
         print(f"! ยังไม่มี {args.data / 'splits.csv'} รัน `python data/dataset.py split` ก่อน", file=sys.stderr)
         return 1
     splits = load_splits(args.data)
-    all_results, md = {}, ["# ผลทดลองการปรับปรุงภาพ (ส่วนที่ 1)", ""]
+    all_results, md = {}, ["# ผลทดลองการปรับปรุงภาพ (ส่วนที่ 1)", "",
+                           "เลือกวิธีปรับปรุงภาพจากชุด `tune` เท่านั้น ชุด `test` และ `web` เป็นชุดประเมินผล "
+                           "ใช้รายงานอย่างเดียว ห้ามใช้เลือกวิธีหรือปรับค่า", ""]
     for split in args.split:
         images = splits.get(split, [])
         if not images:
