@@ -163,7 +163,7 @@ it('ล็อกภาพเดิมระหว่างส่งทั้ง�
   fireEvent.click(screen.getByRole('button', { name: 'กำลังนับ…' }))
   expect(createAnalysis).toHaveBeenCalledTimes(1)
   expect(createAnalysis).toHaveBeenCalledWith(file)
-  expect(screen.getByRole('status', { name: 'สถานะการนับเหรียญ' })).toBeTruthy()
+  expect(screen.getByText('กำลังนับเหรียญจากภาพนี้')).toBeTruthy()
   expect(inputs[0].disabled).toBe(true)
   expect(inputs[1].disabled).toBe(true)
   expect((screen.getByRole('button', { name: 'เลือกใหม่' }) as HTMLButtonElement).disabled).toBe(
@@ -176,7 +176,7 @@ it('ล็อกภาพเดิมระหว่างส่งทั้ง�
   expect(revokeUrl).not.toHaveBeenCalled()
   await act(async () => reject(new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')))
   expect(screen.getByRole('alert').textContent).toContain('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
-  expect(screen.queryByRole('status', { name: 'สถานะการนับเหรียญ' })).toBeNull()
+  expect(screen.queryByText('กำลังนับเหรียญจากภาพนี้')).toBeNull()
   expect(inputs[0].disabled).toBe(false)
   expect(inputs[1].disabled).toBe(false)
   vi.mocked(createAnalysis).mockRejectedValueOnce(new Error('ลองอีกครั้ง'))
@@ -203,7 +203,7 @@ it.each(['เซิร์ฟเวอร์ไม่พร้อมให้บ�
     fireEvent.click(screen.getByRole('button', { name: 'ใช้รูปนี้' }))
     await screen.findByRole('alert')
     expect(screen.getByRole('alert').textContent).toBe(message)
-    expect(screen.queryByRole('status', { name: 'สถานะการนับเหรียญ' })).toBeNull()
+    expect(screen.queryByText('กำลังนับเหรียญจากภาพนี้')).toBeNull()
     expect((screen.getByRole('button', { name: 'ใช้รูปนี้' }) as HTMLButtonElement).disabled).toBe(
       false,
     )

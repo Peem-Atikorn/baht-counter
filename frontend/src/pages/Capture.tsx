@@ -149,7 +149,7 @@ export default function Capture() {
             />
           )}
           {sending && <ProcessingStatus />}
-          <div className="grid grid-cols-2 gap-3" aria-busy={sending}>
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={retake}
               disabled={sending}
