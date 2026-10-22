@@ -83,6 +83,14 @@ def encode_png(img: np.ndarray) -> bytes:
     return buf.tobytes()
 
 
+def encode_display_jpeg(image: np.ndarray) -> bytes:
+    """ภาพสำหรับเว็บจากพิกัดต้นฉบับหลังหมุน EXIF แล้ว ไม่ใช้ภาพย่อของ pipeline"""
+    ok, buf = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    if not ok:
+        raise HTTPException(500, "สร้างภาพสำหรับแสดงผลไม่สำเร็จ")
+    return buf.tobytes()
+
+
 def get_or_404(analysis_id: str) -> dict:
     record = db.get_analysis(analysis_id)
     if record is None:
@@ -168,6 +176,8 @@ def create_analysis(file: UploadFile):
     analysis_id = uuid.uuid4().hex
     ext = EXT_BY_CONTENT_TYPE[file.content_type]
     storage.save_image(analysis_id, f"original{ext}", data)
+    if ext in (".heic", ".heif"):
+        storage.save_image(analysis_id, "display.jpg", encode_display_jpeg(image))
     for name, img in debug.items():
         storage.save_image(analysis_id, f"{name}.png", encode_png(img))
 
@@ -187,6 +197,13 @@ def get_analysis(analysis_id: str):
 @app.get("/api/analyses/{analysis_id}/images/{name}")
 def get_image(analysis_id: str, name: str):
     record = get_or_404(analysis_id)
+    if name == "original" and record["original_ext"] in (".heic", ".heif"):
+        data = storage.load_image(analysis_id, "display.jpg")
+        if data is None:
+            # ผลเก่าก่อนเพิ่ม display.jpg ต้องเปิดจากประวัติได้ด้วย
+            data = encode_display_jpeg(load_original(record))
+            storage.save_image(analysis_id, "display.jpg", data)
+        return Response(data, media_type="image/jpeg")
     filename = f"original{record['original_ext']}" if name == "original" else f"{name}.png"
     data = storage.load_image(analysis_id, filename)
     if data is None:
