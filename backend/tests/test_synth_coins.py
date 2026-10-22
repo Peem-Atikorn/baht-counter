@@ -105,7 +105,7 @@ def test_main_writes_synth_images_that_split_to_synth_and_skip_test_sources(tmp_
     rep = dataset.check(tmp_path)
     assert not rep.errors
     thb2 = next(line for line in rep.lines if line.startswith("| THB_2 |"))
-    assert thb2.startswith("| THB_2 | 3 ⚠ |")     # รวมนับเฉพาะภาพจริง (001, 003, tilt15) ไม่นับ synth
+    assert thb2.startswith("| THB_2 | 3 † |")     # รวมนับเฉพาะภาพจริง (001, 003, tilt15) ไม่นับ synth
 
 
 def test_check_rejects_synth_image_outside_synth_split(tmp_path):

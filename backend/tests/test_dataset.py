@@ -53,9 +53,20 @@ def test_check_counts_and_reports_problems(tmp_path):
     assert "IMG_9.png: ชื่อไม่ตรงรูปแบบ" in warnings
     assert "ยังไม่อยู่ใน splits.csv" in warnings
     assert "| THB_1 | 3 ⚠ |" in text                     # 3 ภาพที่ป้ายถูก × 1 เหรียญ ต่ำกว่าเป้า 80
-    assert "- พื้นหลัง: {'cloth': 1, 'white': 2, 'wood': 1}" in rep.lines   # 3 แบบครบแล้ว ไม่มี ⚠
+    assert "- พื้นหลัง: {'cloth': 1, 'white': 2, 'wood': 1}" in rep.lines   # พื้นหลังไม่ตั้งขั้นต่ำ ไม่มี ⚠
     assert "- แสง: {'flash': 1, 'room': 2, 'window': 1}" in rep.lines
     assert dataset.main(["--data", str(tmp_path), "check"]) == 1
+
+
+def test_check_relaxed_rules_for_rare_coin_and_background(tmp_path):
+    """2 บาทหายาก ไม่เตือนว่าต่ำกว่าเป้า และพื้นหลังแบบเดียวไม่เตือน"""
+    coins = [{"center_xy": [50 + 100 * k, 150], "radius_px": 40, "coin_type": t}
+             for k, t in enumerate(["THB_2", "THB_1", "THB_5"])]
+    add_image(tmp_path, "p1_white_room_top_001.png", coins=coins)
+    text = "\n".join(dataset.check(tmp_path).lines)
+    assert "| THB_2 | 1 † |" in text
+    assert "| THB_1 | 1 ⚠ |" in text
+    assert "- พื้นหลัง: {'white': 1}\n" in text + "\n"
 
 
 def test_check_uses_exif_orientation(tmp_path):
