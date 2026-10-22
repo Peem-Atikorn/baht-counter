@@ -414,4 +414,22 @@ def test_detect_coin_at_large_coin():
     assert np.hypot(clicked.center_xy[0] - 600.0, clicked.center_xy[1] - 600.0) <= 3.0
 
 
+def test_segment_bounded_fill_holes():
+    """ทดสอบว่า fill_internal_holes แบบจำกัดขนาด ไม่เชื่อมรูขนาดใหญ่ที่เกิดจากพื้นหลังระหว่างเหรียญ"""
+    from modules.detection.segment import fill_internal_holes
+
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    # วาดกรอบสี่เหลี่ยมกลวงขนาดใหญ่
+    cv2.rectangle(mask, (20, 20), (180, 180), 255, 10)
+    # วาดวงกลมกลวงขนาดเล็ก (รูแสงสะท้อนในเหรียญ)
+    cv2.circle(mask, (50, 50), 10, 255, 3)
+
+    filled = fill_internal_holes(mask, max_hole_area=np.pi * 15**2)
+    # รูเล็กต้องถูกเติม
+    assert filled[50, 50] == 255
+    # รูใหญ่ตรงกลางกรอบต้องไม่ถูกเติม
+    assert filled[100, 100] == 0
+
+
+
 

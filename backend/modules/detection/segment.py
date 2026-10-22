@@ -19,23 +19,28 @@ def estimate_background_color(image: np.ndarray, border_width: int = 8) -> np.nd
     return np.median(border_pixels, axis=0)
 
 
-def fill_internal_holes(mask: np.ndarray) -> np.ndarray:
-    """เติมรูภายในวัตถุ (เช่น แสงสะท้อนสีขาว รูในเหรียญ หรือลวดลาย) ให้เป็นแผ่นตัน"""
+def fill_internal_holes(mask: np.ndarray, max_hole_area: float | None = None) -> np.ndarray:
+    """เติมรูภายในวัตถุ (เช่น แสงสะท้อนสีขาว รูในเหรียญ หรือลวดลาย) ให้เป็นแผ่นตัน
+
+    หากระบุ max_hole_area จะเติมเฉพาะรูที่มีขนาดเล็กกว่าเกณฑ์ เพื่อป้องกันไม่ให้ช่องว่าง
+    ระหว่างเหรียญหลายเหรียญหรือพื้นหลังลายผ้าถูกเชื่อมรวมกลายเป็นก้อนเดียวกัน
+    """
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     filled = mask.copy()
     if hierarchy is not None:
         for i, h in enumerate(hierarchy[0]):
             if h[3] != -1:
-                cv2.drawContours(filled, contours, i, 255, -1)
+                if max_hole_area is None or cv2.contourArea(contours[i]) <= max_hole_area:
+                    cv2.drawContours(filled, contours, i, 255, -1)
     return filled
 
 
-def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.125, ksize: int = 71) -> np.ndarray:
+def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.0625, ksize: int = 71) -> np.ndarray:
     """ประเมินพื้นหลังของภาพเทาด้วย Downsampled Median Filter
 
     Median filter มีคุณสมบัติ Zero Shift บนระนาบไล่ระดับแสง (Illumination Gradient/Vignette)
-    และการย่อขนาดภาพ (Downsampling 8x) ทำให้เหรียญขนาดใหญ่ (r=90 ถึง 260px) กลายเป็นวัตถุขนาดเล็ก
-    ที่ถูก Median Filter กรองออกอย่างสมบูรณ์โดยไม่กินเนื้อเหรียญ
+    และการย่อขนาดภาพ (Downsampling 16x) ทำให้เหรียญขนาดใหญ่กลายเป็นวัตถุขนาดเล็ก
+    ที่ถูก Median Filter กรองออกอย่างสมบูรณ์โดยไม่กินเนื้อเหรียญแม้มีเหรียญวางหนาแน่น
     """
     h, w = gray.shape[:2]
     small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -45,7 +50,7 @@ def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.125, ksize:
     return cv2.resize(bg_small, (w, h), interpolation=cv2.INTER_CUBIC)
 
 
-def estimate_bg_illumination_bgr(bgr: np.ndarray, scale: float = 0.125, ksize: int = 71) -> np.ndarray:
+def estimate_bg_illumination_bgr(bgr: np.ndarray, scale: float = 0.0625, ksize: int = 71) -> np.ndarray:
     """ประเมินภาพพื้นหลังของภาพสี (BGR) ด้วย Downsampled Median Filter"""
     h, w = bgr.shape[:2]
     small = cv2.resize(bgr, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -157,15 +162,18 @@ def segment_coins(
 
 def clean_morphology(
     mask: np.ndarray,
-    close_size: int = 9,
-    open_size: int = 3,
+    close_size: int = 7,
+    open_size: int = 5,
 ) -> np.ndarray:
-    """ปรับปรุงหน้ากาก binary ด้วย Closing (ปิดรูในเหรียญ) และ Opening (ตัดจุดรบกวนภายนอก)"""
+    """ปรับปรุงหน้ากาก binary ด้วย Closing (ปิดรูในเหรียญ) และ Opening (ตัดจุดรบกวนภายนอกและเส้นใยผ้า)"""
+    h, w = mask.shape[:2]
+    max_hole = np.pi * (min(h, w) * 0.22) ** 2
+
     if close_size > 1:
         kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
 
-    mask = fill_internal_holes(mask)
+    mask = fill_internal_holes(mask, max_hole_area=max_hole)
 
     if open_size > 1:
         kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_size, open_size))
