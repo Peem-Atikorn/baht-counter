@@ -122,7 +122,8 @@ def report(split: str, results: dict[str, dict]) -> str:
             f"| {name} | {s['images']} | {s['rejected']} | {fmt(s['det_precision'], True)} "
             f"| {fmt(s['det_recall'], True)} | {fmt(s['radius_err_mean_pct'])} | {fmt(s['color_group_acc'], True)} "
             f"| {fmt(s['coin_type_acc'], True)} | {fmt(s['preprocess_ms'])} |")
-    lines += ["", "กลุ่มสี/ชนิดวัดบนวงกลมจากป้ายกำกับ (ไม่ขึ้นกับการหาเหรียญ) · เหรียญ unknown ไม่นับ", ""]
+    lines += ["", "กลุ่มสี/ชนิดวัดบนวงกลมจากป้ายกำกับ (ไม่ขึ้นกับการหาเหรียญ) · เหรียญ unknown ไม่นับ",
+              "ภาพที่ถูกปฏิเสธ: เหรียญในภาพนั้นนับเป็นเหรียญที่หาไม่เจอใน Det R ส่วนค่าอื่นคิดเฉพาะภาพที่ผ่าน", ""]
     return "\n".join(lines)
 
 

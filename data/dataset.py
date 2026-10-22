@@ -232,9 +232,10 @@ def check(data: Path) -> Report:
         lines.append(f"| {code} | {per_type[code]}{mark} | " + " | ".join(str(per_split[s][code]) for s in cols) + " |")
     lines += ["", f"⚠ = ภาพจริงต่ำกว่าเป้า {MIN_COINS_PER_TYPE} เหรียญต่อชนิด (ไม่นับ synth)",
               "† = เหรียญหายาก ไม่ตั้งเป้า รายงานความแม่นแยก", ""]
-    for i, (what, need) in enumerate([("พื้นหลัง", 1), ("แสง", MIN_LIGHTS), ("มุม", 2)]):
+    # None = ไม่ตั้งขั้นต่ำ แสดงจำนวนเฉย ๆ
+    for i, (what, need) in enumerate([("พื้นหลัง", None), ("แสง", MIN_LIGHTS), ("มุม", 2)]):
         seen = Counter(g[i] for g in groups)
-        ok = "" if len(seen) >= need else f" ⚠ ต้องมีอย่างน้อย {need} แบบ"
+        ok = "" if need is None or len(seen) >= need else f" ⚠ ต้องมีอย่างน้อย {need} แบบ"
         lines.append(f"- {what}: {dict(sorted(seen.items())) or '-'}{ok}")
     return rep
 
