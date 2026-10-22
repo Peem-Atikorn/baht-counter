@@ -62,6 +62,24 @@ def test_run_eval_gt_detector(tmp_path):
     assert (out / "results_gt.json").read_text(encoding="utf-8") == first
 
 
+def test_run_eval_per_type_rows_with_rare_coin(tmp_path):
+    """ตารางผลแยกชนิดพร้อมจำนวนเหรียญ และ 2 บาท (หายาก) มีเครื่องหมาย † (รับไว้ในรีวิว PR #33)"""
+    data, out = tmp_path / "data", tmp_path / "out"
+    build_dataset(data)
+    run_eval.main(["--data", str(data), "--split", "test", "--detector", "gt", "--out", str(out)])
+    res = json.loads((out / "results_gt.json").read_text(encoding="utf-8"))["splits"]["test"]
+    per_type = res["color+scale+1"]["per_type"]
+    assert per_type["THB_1"] == {"coins": 3, "accuracy": 1.0}
+    assert per_type["THB_2"]["coins"] == 1
+    assert "unknown" not in per_type
+
+    md = (out / "results_gt.md").read_text(encoding="utf-8")
+    assert "| ชนิด | เหรียญ | baseline | color+scale | color+scale+template | color+scale+1 |" in md
+    assert "| THB_2 † | 1 | " in md
+    assert "| THB_1 | 3 | " in md
+    assert "† = เหรียญหายาก" in md
+
+
 def test_run_eval_unknown_label_not_used_as_anchor(tmp_path):
     """เหรียญที่ป้ายกำกับเป็น unknown และระบบยังไม่ตัดสินชนิด ต้องไม่ถูกเลือกเป็น anchor (เดิมล่มด้วย ValueError)"""
     data, out = tmp_path / "data", tmp_path / "out"
