@@ -429,7 +429,3 @@ def test_segment_bounded_fill_holes():
     assert filled[50, 50] == 255
     # รูใหญ่ตรงกลางกรอบต้องไม่ถูกเติม
     assert filled[100, 100] == 0
-
-
-
-

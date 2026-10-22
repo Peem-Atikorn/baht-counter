@@ -38,9 +38,12 @@ def fill_internal_holes(mask: np.ndarray, max_hole_area: float | None = None) ->
 def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.0625, ksize: int = 71) -> np.ndarray:
     """ประเมินพื้นหลังของภาพเทาด้วย Downsampled Median Filter
 
-    Median filter มีคุณสมบัติ Zero Shift บนระนาบไล่ระดับแสง (Illumination Gradient/Vignette)
-    และการย่อขนาดภาพ (Downsampling 16x) ทำให้เหรียญขนาดใหญ่กลายเป็นวัตถุขนาดเล็ก
-    ที่ถูก Median Filter กรองออกอย่างสมบูรณ์โดยไม่กินเนื้อเหรียญแม้มีเหรียญวางหนาแน่น
+    หมายเหตุเรื่อง ksize: การย่อภาพ 16x (scale=0.0625) ทำให้ภาพขนาด 1200x1600 เหลือราว 75x100
+    แต่ยังคง ksize=71 ไว้ เนื่องจากกลุ่มเหรียญที่วางติดกันหลายเหรียญ (Cluster) อาจมีความกว้างบนภาพย่อ
+    ถึง 30-40 พิกเซล หากลด ksize ลงมาตามสัดส่วน (เช่น 35 หรือ 25) หน้าต่างมัธยฐานจะเล็กกว่ากลุ่มเหรียญ
+    ทำให้ค่ามัธยฐานกลืนเนื้อเหรียญกลายเป็นพื้นหลังและสูญเสีย Recall อย่างมีนัยสำคัญ
+    การคง ksize=71 จึงช่วยรักษาเหรียญในกลุ่มหนาแน่นได้ดีที่สุด ขณะที่ยังสามารถประมาณแนวโน้มแสงกว้างๆ
+    (Global Illumination Trend / Vignette) ข้ามทั้งภาพได้
     """
     h, w = gray.shape[:2]
     small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -51,7 +54,10 @@ def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.0625, ksize
 
 
 def estimate_bg_illumination_bgr(bgr: np.ndarray, scale: float = 0.0625, ksize: int = 71) -> np.ndarray:
-    """ประเมินภาพพื้นหลังของภาพสี (BGR) ด้วย Downsampled Median Filter"""
+    """ประเมินภาพพื้นหลังของภาพสี (BGR) ด้วย Downsampled Median Filter
+
+    (ใช้หลักการเดียวกับ estimate_bg_illumination_gray โดยคง ksize=71 เพื่อป้องกันไม่ให้กลืนกลุ่มเหรียญหนาแน่น)
+    """
     h, w = bgr.shape[:2]
     small = cv2.resize(bgr, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     k = min(ksize, small.shape[0] - 1 if small.shape[0] % 2 == 1 else small.shape[0] - 2)
@@ -167,6 +173,11 @@ def clean_morphology(
 ) -> np.ndarray:
     """ปรับปรุงหน้ากาก binary ด้วย Closing (ปิดรูในเหรียญ) และ Opening (ตัดจุดรบกวนภายนอกและเส้นใยผ้า)"""
     h, w = mask.shape[:2]
+    # รัศมี 0.22 * min(h, w) อ้างอิงจากขนาดเหรียญ 10 บาทที่มีขนาดใหญ่ที่สุด (25.6 มม.)
+    # ตามโปรโตคอลการถ่ายภาพ (docs/photo-protocol.md) จะมีรัศมีไม่เกิน ~18-20% ของด้านสั้นของภาพ
+    # การกำหนดรัศมีขอบเขตสูงสุดของรูภายในเหรียญเป็น 0.22 * min(h, w) (หรือพื้นที่ π * r^2)
+    # จึงครอบคลุมพื้นที่เหรียญเดี่ยว 1 เหรียญได้อย่างปลอดภัย เพื่อปิดรูแสงสะท้อนหรือลวดลายในเหรียญ
+    # โดยไม่เชื่อมต่อช่องว่างลายผ้าหรือพื้นหลังระหว่างเหรียญหลายวงเข้าด้วยกัน
     max_hole = np.pi * (min(h, w) * 0.22) ** 2
 
     if close_size > 1:
