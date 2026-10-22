@@ -38,7 +38,7 @@ def filter_size_relative_to_coins(coins: list[Coin]) -> list[Coin]:
 def extract_coins_from_markers(
     markers: np.ndarray,
     clean_mask: np.ndarray | None = None,
-    min_area_px: float = 120.0,
+    min_area_px: float = 250.0,
     min_circularity: float = 0.65,
     min_aspect_ratio: float = 0.50,
     filter_relative_size: bool = True,
