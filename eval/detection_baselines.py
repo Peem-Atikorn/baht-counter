@@ -16,10 +16,8 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import cv2
@@ -27,63 +25,12 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "eval"))
 
 from modules.detection import detect_coins  # noqa: E402
-from modules.preprocess import mock_preprocess, preprocess  # noqa: E402
+from modules.preprocess import preprocess  # noqa: E402
+from run_eval import find_image, gt_coins, load_labels, load_splits, match  # noqa: E402
 from schemas import Coin, PreprocessResult  # noqa: E402
-
-MATCH_DIST = 0.5
-
-
-def load_splits(data: Path) -> dict[str, list[str]]:
-    splits: dict[str, list[str]] = defaultdict(list)
-    splits_file = data / "splits.csv"
-    if splits_file.exists():
-        with open(splits_file, newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                splits[row["split"].strip()].append(row["image"].strip())
-    return {k: sorted(v) for k, v in splits.items()}
-
-
-def load_labels(data: Path, image: str) -> list[dict]:
-    with open(data / "labels" / f"{Path(image).stem}.json", encoding="utf-8") as f:
-        return json.load(f)["coins"]
-
-
-def find_image(data: Path, image: str) -> Path | None:
-    for sub in ("raw", "samples"):
-        p = data / sub / image
-        if p.exists():
-            return p
-    return None
-
-
-def gt_coins(labels: list[dict], k: float) -> list[Coin]:
-    return [
-        Coin(
-            coin_id=i,
-            center_xy=(float(c["center_xy"][0] * k), float(c["center_xy"][1] * k)),
-            radius_px=float(c["radius_px"] * k),
-        )
-        for i, c in enumerate(labels)
-    ]
-
-
-def match(gt: list[Coin], pred: list[Coin]) -> dict[int, int]:
-    """จับคู่ gt -> pred แบบ greedy ตามระยะ ต้องไม่เกิน MATCH_DIST * รัศมี gt"""
-    pairs = []
-    for i, g in enumerate(gt):
-        for j, p in enumerate(pred):
-            d = np.hypot(g.center_xy[0] - p.center_xy[0], g.center_xy[1] - p.center_xy[1])
-            if d <= MATCH_DIST * g.radius_px:
-                pairs.append((d, i, j))
-    used_g, used_p, out = set(), set(), {}
-    for _, i, j in sorted(pairs):
-        if i not in used_g and j not in used_p:
-            out[i] = j
-            used_g.add(i)
-            used_p.add(j)
-    return out
 
 
 # ---------- Detection Algorithms ----------
@@ -215,35 +162,25 @@ METHODS = {
 
 # ---------- Evaluation Pipeline ----------
 
-def evaluate_baselines(data: Path, images: list[str], preprocess_fn=None) -> dict:
-    if preprocess_fn is None:
-        try:
-            preprocess_fn = preprocess
-        except Exception:
-            preprocess_fn = mock_preprocess
+def evaluate_baselines(data: Path, images: list[str], preprocess_fn=preprocess) -> dict:
+    missing = [i for i in images if not ((data / "raw" / i).exists() or (data / "samples" / i).exists())]
+    if missing:
+        sys.exit(f"ไม่พบภาพ {len(missing)} ภาพใน data/raw หรือ data/samples เช่น {missing[:3]} (ต้องมี data/raw ครบ)")
 
     valid_images = []
     loaded_data = []
 
     for img_name in images:
         img_path = find_image(data, img_name)
-        if img_path is None:
-            continue
         bgr = cv2.imread(str(img_path))
         if bgr is None:
-            continue
-        try:
-            lbl_coins = load_labels(data, img_name)
-        except FileNotFoundError:
-            continue
+            sys.exit(f"อ่านไฟล์ภาพไม่ได้: {img_path}")
+        lbl_coins = load_labels(data, img_name)
         pre = preprocess_fn(bgr)
         k = pre.resize_factor
         gt = gt_coins(lbl_coins, k)
         valid_images.append(img_name)
         loaded_data.append((img_name, pre, gt))
-
-    if not valid_images:
-        raise ValueError(f"ไม่พบภาพที่มีไฟล์จริงและป้ายกำกับใน {data}")
 
     total_gt = sum(len(gt) for _, _, gt in loaded_data)
     results = {}
@@ -270,10 +207,14 @@ def evaluate_baselines(data: Path, images: list[str], preprocess_fn=None) -> dic
                 p_r = pred[pi].radius_px
                 r_errors.append(abs(p_r - g_r) / g_r * 100.0)
 
-        precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
-        recall = total_tp / total_gt if total_gt > 0 else 0.0
-        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-        mean_r_err = float(np.mean(r_errors)) if r_errors else 0.0
+        precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else None
+        recall = total_tp / total_gt if total_gt > 0 else None
+        f1 = (
+            2 * precision * recall / (precision + recall)
+            if (precision is not None and recall is not None and (precision + recall) > 0)
+            else None
+        )
+        mean_r_err = float(np.mean(r_errors)) if r_errors else None
 
         results[method_name] = {
             "precision": precision,
@@ -305,12 +246,25 @@ def format_markdown_table(eval_summary: dict, split: str) -> str:
         "|---|:---:|:---:|:---:|:---:|",
     ]
     for m_name, m_res in eval_summary["methods"].items():
-        p = f"{m_res['precision'] * 100:.1f}%"
-        r = f"{m_res['recall'] * 100:.1f}%"
-        f1 = f"{m_res['f1_score'] * 100:.1f}%"
-        err = f"{m_res['mean_radius_error_pct']:.2f}%"
+        p = f"{m_res['precision'] * 100:.1f}%" if m_res["precision"] is not None else "-"
+        r = f"{m_res['recall'] * 100:.1f}%" if m_res["recall"] is not None else "-"
+        f1 = f"{m_res['f1_score'] * 100:.1f}%" if m_res["f1_score"] is not None else "-"
+        err = f"{m_res['mean_radius_error_pct']:.2f}%" if m_res["mean_radius_error_pct"] is not None else "-"
         bold = "**" if "Proposed" in m_name else ""
         lines.append(f"| {bold}{m_name}{bold} | {p} | {r} | {f1} | {err} |")
+
+    m = eval_summary["methods"]
+    prop = m.get("Proposed (Multi-cue + Watershed)", {})
+    a = m.get("Baseline A: No Watershed", {})
+    b = m.get("Baseline B: K-Means", {})
+    c = m.get("Baseline C: Hough Circles", {})
+    lines.append("")
+    lines.append(
+        f"จำนวนที่ใช้คิด (TP / FP / GT): Proposed {prop.get('tp', 0)} / {prop.get('fp', 0)} / {n_gt} · "
+        f"A {a.get('tp', 0)} / {a.get('fp', 0)} / {n_gt} · "
+        f"B {b.get('tp', 0)} / {b.get('fp', 0)} / {n_gt} · "
+        f"Hough {c.get('tp', 0)} / {c.get('fp', 0)} / {n_gt}"
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -326,10 +280,9 @@ def main(argv: list[str] | None = None):
         images = splits[args.split]
     elif args.split == "samples":
         samples_dir = args.data / "samples"
-        images = [f.name for f in samples_dir.glob("*.jpg")] + [f.name for f in samples_dir.glob("*.png")]
+        images = sorted([f.name for f in samples_dir.glob("*.jpg")] + [f.name for f in samples_dir.glob("*.png")])
     else:
-        # ลองค้นหาจากชื่อ split
-        images = [f.name for f in (args.data / "labels").glob("*.json")]
+        images = sorted([f.name for f in (args.data / "labels").glob("*.json")])
 
     eval_res = evaluate_baselines(args.data, images)
     md_content = format_markdown_table(eval_res, args.split)

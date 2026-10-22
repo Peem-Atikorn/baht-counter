@@ -1,49 +1,42 @@
 {
-  "images_count": 5,
-  "gt_coins_count": 49,
-  "images": [
-    "p1_cloth_room_top_009.jpg",
-    "p1_white_room_top_001.jpg",
-    "p1_white_room_top_002.jpg",
-    "p1_white_room_top_099.jpg",
-    "p1_white_room_top_115.jpg"
-  ],
+  "images_count": 84,
+  "gt_coins_count": 479,
   "methods": {
     "Proposed (Multi-cue + Watershed)": {
-      "precision": 0.9767441860465116,
-      "recall": 0.8571428571428571,
-      "f1_score": 0.9130434782608695,
-      "mean_radius_error_pct": 11.508144222127912,
-      "tp": 42,
-      "fp": 1,
-      "gt": 49
+      "precision": 0.5398550724637681,
+      "recall": 0.6221294363256785,
+      "f1_score": 0.5777883298679612,
+      "mean_radius_error_pct": 9.93,
+      "tp": 298,
+      "fp": 254,
+      "gt": 479
     },
     "Baseline A: No Watershed": {
-      "precision": 0.7272727272727273,
-      "recall": 0.16326530612244897,
-      "f1_score": 0.26666666666666666,
-      "mean_radius_error_pct": 11.769390763832163,
-      "tp": 8,
-      "fp": 3,
-      "gt": 49
+      "precision": 0.4298642533936652,
+      "recall": 0.198329853862213,
+      "f1_score": 0.2714285714285714,
+      "mean_radius_error_pct": 11.13,
+      "tp": 95,
+      "fp": 126,
+      "gt": 479
     },
     "Baseline B: K-Means": {
-      "precision": 0.7272727272727273,
-      "recall": 0.16326530612244897,
-      "f1_score": 0.26666666666666666,
-      "mean_radius_error_pct": 12.172850302117627,
-      "tp": 8,
-      "fp": 3,
-      "gt": 49
+      "precision": 0.4337899543378995,
+      "recall": 0.198329853862213,
+      "f1_score": 0.2722063037249284,
+      "mean_radius_error_pct": 11.71,
+      "tp": 95,
+      "fp": 124,
+      "gt": 479
     },
     "Baseline C: Hough Circles": {
-      "precision": 0.35344827586206895,
-      "recall": 0.8367346938775511,
-      "f1_score": 0.49696969696969695,
-      "mean_radius_error_pct": 15.572064297244864,
-      "tp": 41,
-      "fp": 75,
-      "gt": 49
+      "precision": 0.25311720698254366,
+      "recall": 0.8475991649269311,
+      "f1_score": 0.3898223715873739,
+      "mean_radius_error_pct": 10.39,
+      "tp": 406,
+      "fp": 1198,
+      "gt": 479
     }
   }
 }

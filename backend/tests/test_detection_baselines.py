@@ -13,7 +13,6 @@ import detection_baselines  # noqa: E402
 def test_detection_baselines_on_samples(tmp_path):
     data = ROOT / "data"
     out = tmp_path / "results"
-    # รันบนชุด samples
     args = ["--data", str(data), "--split", "samples", "--out", str(out)]
     detection_baselines.main(args)
 
@@ -39,3 +38,10 @@ def test_detection_baselines_on_samples(tmp_path):
         assert 0.0 <= methods[m]["recall"] <= 1.0
         assert 0.0 <= methods[m]["f1_score"] <= 1.0
         assert methods[m]["mean_radius_error_pct"] >= 0.0
+
+
+def test_detection_baselines_missing_images_exit():
+    data = ROOT / "data"
+    with pytest.raises(SystemExit) as exc:
+        detection_baselines.evaluate_baselines(data, ["missing_sample_image.jpg"])
+    assert "ไม่พบภาพ" in str(exc.value)
