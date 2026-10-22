@@ -19,23 +19,31 @@ def estimate_background_color(image: np.ndarray, border_width: int = 8) -> np.nd
     return np.median(border_pixels, axis=0)
 
 
-def fill_internal_holes(mask: np.ndarray) -> np.ndarray:
-    """เติมรูภายในวัตถุ (เช่น แสงสะท้อนสีขาว รูในเหรียญ หรือลวดลาย) ให้เป็นแผ่นตัน"""
+def fill_internal_holes(mask: np.ndarray, max_hole_area: float | None = None) -> np.ndarray:
+    """เติมรูภายในวัตถุ (เช่น แสงสะท้อนสีขาว รูในเหรียญ หรือลวดลาย) ให้เป็นแผ่นตัน
+
+    หากระบุ max_hole_area จะเติมเฉพาะรูที่มีขนาดเล็กกว่าเกณฑ์ เพื่อป้องกันไม่ให้ช่องว่าง
+    ระหว่างเหรียญหลายเหรียญหรือพื้นหลังลายผ้าถูกเชื่อมรวมกลายเป็นก้อนเดียวกัน
+    """
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     filled = mask.copy()
     if hierarchy is not None:
         for i, h in enumerate(hierarchy[0]):
             if h[3] != -1:
-                cv2.drawContours(filled, contours, i, 255, -1)
+                if max_hole_area is None or cv2.contourArea(contours[i]) <= max_hole_area:
+                    cv2.drawContours(filled, contours, i, 255, -1)
     return filled
 
 
-def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.125, ksize: int = 71) -> np.ndarray:
+def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.0625, ksize: int = 71) -> np.ndarray:
     """ประเมินพื้นหลังของภาพเทาด้วย Downsampled Median Filter
 
-    Median filter มีคุณสมบัติ Zero Shift บนระนาบไล่ระดับแสง (Illumination Gradient/Vignette)
-    และการย่อขนาดภาพ (Downsampling 8x) ทำให้เหรียญขนาดใหญ่ (r=90 ถึง 260px) กลายเป็นวัตถุขนาดเล็ก
-    ที่ถูก Median Filter กรองออกอย่างสมบูรณ์โดยไม่กินเนื้อเหรียญ
+    หมายเหตุเรื่อง ksize: การย่อภาพ 16x (scale=0.0625) ทำให้ภาพขนาด 1200x1600 เหลือราว 75x100
+    แต่ยังคง ksize=71 ไว้ เนื่องจากกลุ่มเหรียญที่วางติดกันหลายเหรียญ (Cluster) อาจมีความกว้างบนภาพย่อ
+    ถึง 30-40 พิกเซล หากลด ksize ลงมาตามสัดส่วน (เช่น 35 หรือ 25) หน้าต่างมัธยฐานจะเล็กกว่ากลุ่มเหรียญ
+    ทำให้ค่ามัธยฐานกลืนเนื้อเหรียญกลายเป็นพื้นหลังและสูญเสีย Recall อย่างมีนัยสำคัญ
+    การคง ksize=71 จึงช่วยรักษาเหรียญในกลุ่มหนาแน่นได้ดีที่สุด ขณะที่ยังสามารถประมาณแนวโน้มแสงกว้างๆ
+    (Global Illumination Trend / Vignette) ข้ามทั้งภาพได้
     """
     h, w = gray.shape[:2]
     small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -45,8 +53,11 @@ def estimate_bg_illumination_gray(gray: np.ndarray, scale: float = 0.125, ksize:
     return cv2.resize(bg_small, (w, h), interpolation=cv2.INTER_CUBIC)
 
 
-def estimate_bg_illumination_bgr(bgr: np.ndarray, scale: float = 0.125, ksize: int = 71) -> np.ndarray:
-    """ประเมินภาพพื้นหลังของภาพสี (BGR) ด้วย Downsampled Median Filter"""
+def estimate_bg_illumination_bgr(bgr: np.ndarray, scale: float = 0.0625, ksize: int = 71) -> np.ndarray:
+    """ประเมินภาพพื้นหลังของภาพสี (BGR) ด้วย Downsampled Median Filter
+
+    (ใช้หลักการเดียวกับ estimate_bg_illumination_gray โดยคง ksize=71 เพื่อป้องกันไม่ให้กลืนกลุ่มเหรียญหนาแน่น)
+    """
     h, w = bgr.shape[:2]
     small = cv2.resize(bgr, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     k = min(ksize, small.shape[0] - 1 if small.shape[0] % 2 == 1 else small.shape[0] - 2)
@@ -157,15 +168,23 @@ def segment_coins(
 
 def clean_morphology(
     mask: np.ndarray,
-    close_size: int = 9,
-    open_size: int = 3,
+    close_size: int = 7,
+    open_size: int = 5,
 ) -> np.ndarray:
-    """ปรับปรุงหน้ากาก binary ด้วย Closing (ปิดรูในเหรียญ) และ Opening (ตัดจุดรบกวนภายนอก)"""
+    """ปรับปรุงหน้ากาก binary ด้วย Closing (ปิดรูในเหรียญ) และ Opening (ตัดจุดรบกวนภายนอกและเส้นใยผ้า)"""
+    h, w = mask.shape[:2]
+    # รัศมี 0.22 * min(h, w) อ้างอิงจากขนาดเหรียญ 10 บาทที่มีขนาดใหญ่ที่สุด (25.6 มม.)
+    # ตามโปรโตคอลการถ่ายภาพ (docs/photo-protocol.md) จะมีรัศมีไม่เกิน ~18-20% ของด้านสั้นของภาพ
+    # การกำหนดรัศมีขอบเขตสูงสุดของรูภายในเหรียญเป็น 0.22 * min(h, w) (หรือพื้นที่ π * r^2)
+    # จึงครอบคลุมพื้นที่เหรียญเดี่ยว 1 เหรียญได้อย่างปลอดภัย เพื่อปิดรูแสงสะท้อนหรือลวดลายในเหรียญ
+    # โดยไม่เชื่อมต่อช่องว่างลายผ้าหรือพื้นหลังระหว่างเหรียญหลายวงเข้าด้วยกัน
+    max_hole = np.pi * (min(h, w) * 0.22) ** 2
+
     if close_size > 1:
         kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
 
-    mask = fill_internal_holes(mask)
+    mask = fill_internal_holes(mask, max_hole_area=max_hole)
 
     if open_size > 1:
         kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_size, open_size))
