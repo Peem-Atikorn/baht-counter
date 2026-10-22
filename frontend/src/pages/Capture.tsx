@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createAnalysis } from '../api/client'
 import Camera from '../components/Camera'
 import Icon from '../components/Icon'
+import ProcessingStatus from '../components/ProcessingStatus'
 import { IMAGE_ACCEPT, normalizeImage, validateImage } from '../lib/image'
 
 type Preview = { image: Blob; url: string; from: 'camera' | 'upload'; failed?: boolean }
@@ -16,6 +17,7 @@ export default function Capture() {
   const [notice, setNotice] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [sending, setSending] = useState(false)
+  const inFlight = useRef(false)
   const uploadInput = useRef<HTMLInputElement>(null)
   const captureInput = useRef<HTMLInputElement>(null)
 
@@ -35,6 +37,7 @@ export default function Capture() {
   )
 
   const choose = useCallback((image: Blob, from: Preview['from']) => {
+    if (inFlight.current) return
     const problem = validateImage(image)
     if (problem) return setError(problem)
     setError(null)
@@ -74,13 +77,15 @@ export default function Capture() {
   }
 
   function retake() {
+    if (inFlight.current) return
     if (preview?.from !== 'camera') uploadInput.current?.click()
     else if (notice) captureInput.current?.click()
     else setCameraOpen(true)
   }
 
   async function send() {
-    if (!preview) return
+    if (!preview || inFlight.current) return
+    inFlight.current = true
     setSending(true)
     setError(null)
     try {
@@ -88,6 +93,8 @@ export default function Capture() {
       navigate(`/result/${analysis_id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ส่งภาพไม่สำเร็จ')
+    } finally {
+      inFlight.current = false
       setSending(false)
     }
   }
@@ -104,6 +111,7 @@ export default function Capture() {
         <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           <span>{notice}</span>
           <button
+            disabled={sending}
             onClick={() => captureInput.current?.click()}
             className="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-white"
           >
@@ -140,7 +148,8 @@ export default function Capture() {
               className="max-h-[60vh] w-full rounded-xl bg-surface-muted object-contain"
             />
           )}
-          <div className="grid grid-cols-2 gap-3">
+          {sending && <ProcessingStatus />}
+          <div className="grid grid-cols-2 gap-3" aria-busy={sending}>
             <button
               onClick={retake}
               disabled={sending}
@@ -195,6 +204,7 @@ export default function Capture() {
         ref={uploadInput}
         type="file"
         accept={IMAGE_ACCEPT}
+        disabled={sending}
         hidden
         onChange={(e) => onFileInput(e, 'upload')}
       />
@@ -203,6 +213,7 @@ export default function Capture() {
         type="file"
         accept="image/*"
         capture="environment"
+        disabled={sending}
         hidden
         onChange={(e) => onFileInput(e, 'camera')}
       />
