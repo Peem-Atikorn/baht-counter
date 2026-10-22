@@ -113,8 +113,9 @@ def test_user_edited_coin_kept_and_used_as_constraint():
 def test_unknown_size_coin_makes_total_null():
     """เหรียญทองขนาดไม่ตรงกับ 2 บาท (เช่นเหรียญต่างประเทศ) -> unknown ไม่ใช่เดา และยอดรวมเป็น null ไม่นับเป็น 0"""
     pre, coins = make_image(["THB_1", "THB_5", "THB_2"])
-    # ใหญ่กว่า 2 บาท 45% (MAX_REL_ERR ปรับด้วยชุด tune เป็น 0.13 เพราะมุมกล้องทำให้ขนาดคลาดได้มาก)
-    big = coins[2].model_copy(update=dict(radius_px=coins[2].radius_px * 1.45))
+    # วาดเหรียญทองที่ใหญ่กว่า 2 บาท 30% จริง ๆ ทับเหรียญเดิม (ไม่ใช่ขยายแค่วงกลม)
+    big = coins[2].model_copy(update=dict(radius_px=coins[2].radius_px * 1.3))
+    cv2.circle(pre.image, (round(big.center_xy[0]), round(big.center_xy[1])), round(big.radius_px), COLORS["gold"], -1)
     res = classify_coins(pre, coins[:2] + [big])
     assert res.coins[2].coin_type == "unknown"
     assert res.coins[2].value_baht is None
@@ -122,6 +123,18 @@ def test_unknown_size_coin_makes_total_null():
     assert res.total_baht is None
     # ผู้ใช้ลบเหรียญนั้นแล้ว ยอดรวมกลับมาเป็นตัวเลข
     assert classify_coins(pre, coins[:2]).total_baht == 6.0
+
+
+@pytest.mark.parametrize("k", [1.25, 1.3, 1.35, 1.45])
+def test_oversized_circle_not_ok(k):
+    """วงกลมจากส่วนที่ 2 ใหญ่เกินเหรียญ 2 บาท วงแหวนขอบตกบนพื้นหลัง ต้องไม่กลายเป็น 10 บาทพร้อม status ok"""
+    pre, coins = make_image(["THB_1", "THB_5", "THB_2"])
+    big = coins[2].model_copy(update=dict(radius_px=coins[2].radius_px * k))
+    res = classify_coins(pre, coins[:2] + [big])
+    assert color_groups(pre.image, [big])[0].group != "bimetal"
+    assert res.coins[2].coin_type != "THB_10"
+    assert res.status != "ok"
+    assert res.total_baht is None
 
 
 def test_unknown_change_does_not_force_anchor():

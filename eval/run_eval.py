@@ -220,6 +220,8 @@ def report(split: str, detector: str, results: dict[str, dict]) -> str:
                      + " | ".join(fmt(s["per_type"][t]["accuracy"]) for s in results.values()) + " |")
     if any(t in first["per_type"] for t in RARE_TYPES):
         lines += ["", "† = เหรียญหายาก จำนวนน้อย ความแม่นของชนิดนี้แกว่งได้มาก ให้อ่านคู่กับจำนวนเหรียญ"]
+    if detector != "gt":
+        lines += ["", "เหรียญที่หาไม่เจอ (คอลัมน์ missed ใน confusion matrix) นับเป็นผิด เหมือน Acc รายเหรียญ"]
     for name, s in results.items():
         lines += ["", f"### confusion matrix: {name} (แถว = ป้ายกำกับ, คอลัมน์ = ผลระบบ)", "",
                   "| | " + " | ".join(PRED_COLS) + " |", "|---" * (len(PRED_COLS) + 1) + "|"]
