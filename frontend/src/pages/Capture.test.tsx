@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import Capture from './Capture'
 import { createAnalysis } from '../api/client'
@@ -140,3 +140,73 @@ it('เลือก JPEG ใหม่หลังพรีวิว HEIC ไม�
   expect(screen.queryByRole('status')).toBeNull()
   expect(screen.getByAltText('ภาพที่เลือก')).toBeTruthy()
 })
+
+it('ล็อกภาพเดิมระหว่างส่งทั้งคลิปบอร์ดและช่องเลือกไฟล์ แล้วเปิดให้ลองใหม่เมื่อส่งล้มเหลว', async () => {
+  let reject!: (error: Error) => void
+  vi.mocked(createAnalysis).mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail
+      }),
+  )
+  const view = render(
+    <MemoryRouter>
+      <Capture />
+    </MemoryRouter>,
+  )
+  const inputs = view.container.querySelectorAll<HTMLInputElement>('input[type="file"]')
+  const file = new File(['original'], 'original.jpg', { type: 'image/jpeg' })
+  const other = new File(['other'], 'other.jpg', { type: 'image/jpeg' })
+  fireEvent.change(inputs[0], { target: { files: [file] } })
+  const url = screen.getByAltText('ภาพที่เลือก').getAttribute('src')
+  fireEvent.click(screen.getByRole('button', { name: 'ใช้รูปนี้' }))
+  fireEvent.click(screen.getByRole('button', { name: 'กำลังนับ…' }))
+  expect(createAnalysis).toHaveBeenCalledTimes(1)
+  expect(createAnalysis).toHaveBeenCalledWith(file)
+  expect(screen.getByRole('status', { name: 'สถานะการนับเหรียญ' })).toBeTruthy()
+  expect(inputs[0].disabled).toBe(true)
+  expect(inputs[1].disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'เลือกใหม่' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  )
+  fireEvent.paste(window, { clipboardData: { files: [other] } })
+  for (const input of inputs) fireEvent.change(input, { target: { files: [other] } })
+  expect(screen.getByAltText('ภาพที่เลือก').getAttribute('src')).toBe(url)
+  expect(createUrl).toHaveBeenCalledTimes(1)
+  expect(revokeUrl).not.toHaveBeenCalled()
+  await act(async () => reject(new Error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')))
+  expect(screen.getByRole('alert').textContent).toContain('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
+  expect(screen.queryByRole('status', { name: 'สถานะการนับเหรียญ' })).toBeNull()
+  expect(inputs[0].disabled).toBe(false)
+  expect(inputs[1].disabled).toBe(false)
+  vi.mocked(createAnalysis).mockRejectedValueOnce(new Error('ลองอีกครั้ง'))
+  fireEvent.click(screen.getByRole('button', { name: 'ใช้รูปนี้' }))
+  await screen.findByText('ลองอีกครั้ง')
+  expect(vi.mocked(createAnalysis).mock.calls[1][0]).toBe(file)
+  fireEvent.paste(window, { clipboardData: { files: [other] } })
+  expect(screen.getByAltText('ภาพที่เลือก').getAttribute('src')).not.toBe(url)
+})
+
+it.each(['เซิร์ฟเวอร์ไม่พร้อมให้บริการ กรุณาลองใหม่', 'ไฟล์ใหญ่เกิน 15 MB'])(
+  'เมื่อ API ตอบว่า %s ต้องเลิกรอและยังใช้ภาพเดิมได้',
+  async (message) => {
+    vi.mocked(createAnalysis).mockRejectedValueOnce(new Error(message))
+    const view = render(
+      <MemoryRouter>
+        <Capture />
+      </MemoryRouter>,
+    )
+    const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' })
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, {
+      target: { files: [file] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'ใช้รูปนี้' }))
+    await screen.findByRole('alert')
+    expect(screen.getByRole('alert').textContent).toBe(message)
+    expect(screen.queryByRole('status', { name: 'สถานะการนับเหรียญ' })).toBeNull()
+    expect((screen.getByRole('button', { name: 'ใช้รูปนี้' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+    expect(screen.getByAltText('ภาพที่เลือก')).toBeTruthy()
+  },
+)

@@ -44,6 +44,8 @@ from schemas import Coin, CountResult, PreprocessResult  # noqa: E402
 GT_ROWS = COIN_CODES + ["unknown"]       # unknown = เหรียญต่างประเทศ/ที่ระลึก
 PRED_COLS = COIN_CODES + ["unknown", "none", "missed"]
 MATCH_DIST = 0.5        # ถูกเมื่อจุดศูนย์กลางห่างไม่เกินครึ่งรัศมี (docs/plan.md ส่วนที่ 2)
+# เหรียญหายาก จำนวนน้อยกว่าเป้า 80 เหรียญ (ตรงกับ RARE_TYPES ใน data/dataset.py) รายงานความแม่นแยกพร้อมจำนวนเหรียญ
+RARE_TYPES = {"THB_2"}
 
 
 # ---------- โหลดข้อมูล ----------
@@ -179,6 +181,9 @@ class Stats:
             "total_undecided_pct": 100 * self.undecided / self.images if self.images else None,
             "needs_confirmation_pct": 100 * self.needs_conf / self.images if self.images else None,
             "failed_pct": 100 * self.failed / self.images if self.images else None,
+            "per_type": {t: {"coins": sum(self.conf[t].values()),
+                             "accuracy": self.conf[t][t] / sum(self.conf[t].values())}
+                         for t in GT_ROWS if t in self.conf},
             "confusion": {t: dict(self.conf[t]) for t in GT_ROWS if t in self.conf},
         }
 
@@ -203,6 +208,20 @@ def report(split: str, detector: str, results: dict[str, dict]) -> str:
             f"| {fmt(s['total_exact_pct'], True)} | {fmt(s['total_mae_baht'])} "
             f"| {fmt(s['total_undecided_pct'], True)} | {fmt(s['needs_confirmation_pct'], True)} "
             f"| {fmt(s['failed_pct'], True)} |")
+    # Acc แยกชนิด: จำนวนเหรียญตามป้ายกำกับเท่ากันทุกวิธี จึงใช้ของวิธีแรก
+    first = next(iter(results.values()), {"per_type": {}})
+    lines += ["", "### Acc แยกชนิด (จำนวนเหรียญตามป้ายกำกับ)", "",
+              "| ชนิด | เหรียญ | " + " | ".join(results) + " |", "|---" * (len(results) + 2) + "|"]
+    for t in GT_ROWS:
+        if t not in first["per_type"]:
+            continue
+        mark = " †" if t in RARE_TYPES else ""
+        lines.append(f"| {t}{mark} | {first['per_type'][t]['coins']} | "
+                     + " | ".join(fmt(s["per_type"][t]["accuracy"]) for s in results.values()) + " |")
+    if any(t in first["per_type"] for t in RARE_TYPES):
+        lines += ["", "† = เหรียญหายาก จำนวนน้อย ความแม่นของชนิดนี้แกว่งได้มาก ให้อ่านคู่กับจำนวนเหรียญ"]
+    if detector != "gt":
+        lines += ["", "เหรียญที่หาไม่เจอ (คอลัมน์ missed ใน confusion matrix) นับเป็นผิด เหมือน Acc รายเหรียญ"]
     for name, s in results.items():
         lines += ["", f"### confusion matrix: {name} (แถว = ป้ายกำกับ, คอลัมน์ = ผลระบบ)", "",
                   "| | " + " | ".join(PRED_COLS) + " |", "|---" * (len(PRED_COLS) + 1) + "|"]

@@ -38,8 +38,8 @@ def filter_size_relative_to_coins(coins: list[Coin]) -> list[Coin]:
 def extract_coins_from_markers(
     markers: np.ndarray,
     clean_mask: np.ndarray | None = None,
-    min_area_px: float = 100.0,
-    min_circularity: float = 0.60,
+    min_area_px: float = 250.0,
+    min_circularity: float = 0.65,
     min_aspect_ratio: float = 0.50,
     filter_relative_size: bool = True,
 ) -> list[Coin]:
@@ -94,10 +94,17 @@ def extract_coins_from_markers(
                 minor_axis = float(min(axis1, axis2))
 
                 # กรองอัตราส่วนแกนสั้น/แกนยาว (ไม่แบนเกินไป)
-                if major_axis > 0 and (minor_axis / major_axis) < min_aspect_ratio:
+                aspect_ratio = minor_axis / major_axis if major_axis > 0 else 0.0
+                if major_axis > 0 and aspect_ratio < min_aspect_ratio:
                     continue
 
-                radius_px = major_axis / 2.0
+                # ประมาณรัศมีแบบถ่วงน้ำหนักต่อเนื่องตาม aspect ratio:
+                # - aspect >= 0.95 (มุมตรง/เกือบตรง): ใช้น้ำหนักไปทาง (major + minor) / 4.0 เพื่อเฉลี่ย noise ขอบหยักและเงา
+                # - aspect <= 0.85 (มุมเอียงชัดเจน): ใช้น้ำหนักไปทาง major / 2.0 ซึ่งเป็นแกนยาวที่ไม่ถูกบีบอัดตามมุมมองกล้อง
+                # - ช่วง 0.85 - 0.95: ปรับค่าน้ำหนักเชื่อมต่อกันอย่างต่อเนื่อง (Continuous) เพื่อไม่ให้เกิดการกระโดดของขนาดเหรียญรอบ 0.88
+                weight = float(np.clip((aspect_ratio - 0.85) / (0.95 - 0.85), 0.0, 1.0))
+                radius_px = weight * ((major_axis + minor_axis) / 4.0) + (1.0 - weight) * (major_axis / 2.0)
+
                 ellipse_tuple: tuple[float, float, float] | None = (major_axis, minor_axis, float(angle))
                 center_xy = (float(cx), float(cy))
             except cv2.error:

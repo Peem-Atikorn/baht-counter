@@ -23,10 +23,26 @@ GLARE_S_MAX = 40       # แทบไม่มีสี = แสงสะท้�
 DARK_V_MAX = 40        # มืดจัด = เงาหรือร่องลาย
 MIN_PIXELS = 15
 
-# เกณฑ์แบ่งสี ค่าเริ่มต้น ต้องปรับด้วยชุดปรับระบบ (ดูค่า HSV ใน eval/run_eval.py --dump-colors)
-SILVER_S_MAX = 70      # ความอิ่มสีต่ำกว่านี้ = เงิน
-COPPER_H_MAX = 14      # H <= 14 หรือ >= 170 = ทองแดง (ส้มแดง)
-GOLD_H_MAX = 35        # 14 < H <= 35 = ทอง (เหลือง)
+# เกณฑ์แบ่งสี ปรับด้วยชุด tune (eval/run_eval.py --split tune --dump-colors, วงกลมจากป้ายกำกับ 474 เหรียญ)
+# - เหรียญเงินใต้ไฟห้องสีอุ่นอมเหลือง S มัธยฐาน 60 p95 ≈ 110 ส่วนทองแดง S p5 ≈ 115, 2 บาท S p5 ≈ 98
+#   เงินมีมากกว่า 2 บาทมาก (237 vs 16) จึงตั้งเกณฑ์ให้เงินเกือบทั้งหมดผ่าน 2 บาทที่ S ต่ำจะถูกมองเป็นเงิน
+# - ทองแดง H p95 ≈ 18–19 ทอง/10 บาท H p5 ≈ 20–21
+# ชุด tune กลุ่มสีถูก 57% -> 93% (เงิน 92%, ทองแดง 95%, 2 บาท 75%, สองสี 100%)
+SILVER_S_MAX = 110     # ความอิ่มสีต่ำกว่านี้ = เงิน
+COPPER_H_MAX = 18      # H <= 18 หรือ >= 170 = ทองแดง (ส้มแดง)
+GOLD_H_MAX = 35        # 18 < H <= 35 = ทอง (เหลือง)
+# 10 บาท: ใจกลาง S / ขอบ S ชุด tune p5 = 1.48 เหรียญสีเดียวทุกชนิด p95 <= 1.10
+# ใช้อัตราส่วนแทนเกณฑ์ silver ของขอบ เพราะแสงอุ่นทำให้ขอบเงินของ 10 บาทอิ่มสีเกินเกณฑ์ (เดิม 10 บาทถูกแค่ 46%)
+# ไม่ต่ำกว่า 1.4 เพราะ 2 บาทที่ขอบซีดเพราะแสงสะท้อนได้ราว 1.3 (test_pale_gold_ring_is_not_bimetal)
+BIMETAL_S_RATIO = 1.4
+# วงกลมจากส่วนที่ 2 ใหญ่เกินเหรียญ: วงแหวนขอบคร่อมขอบเหรียญกับพื้นหลัง ความสว่างในวงแหวนจึงกระจายมาก
+# แล้วเหรียญสีเดียวดูเหมือนใจกลางทอง + ขอบซีด = 10 บาท (รีวิว PR #38) ชุด tune วงกลมจากป้ายกำกับ
+# IQR ของ V ในวงแหวน 10 บาทจริงไม่เกิน 40 ทุกเหรียญ ส่วนวงกลมขยาย x1.3 ที่ถูกจัดเป็นสองสีเกิน 40 ถึง 92%
+RING_V_IQR_MAX = 40
+# ใหญ่เกินมากจนวงแหวนตกบนพื้นหลังทั้งวง IQR จะต่ำอีกครั้ง จึงเทียบกับพื้นหลังนอกวงกลมด้วย
+# ชุด tune: ระยะ (S, V) วงแหวนกับพื้นหลังต่ำกว่า 10 ใน 10 บาทจริง 2.4% และวงกลมขยาย x1.45 ที่ยังเป็นสองสี 83%
+OUTSIDE_R = (1.15, 1.35)
+RING_BG_DIST_MIN = 10
 
 
 @dataclass
@@ -56,6 +72,21 @@ def _median_hsv(hsv: np.ndarray, mask: np.ndarray) -> tuple[float, float, float]
     return float(np.median(h)) % 180, float(np.median(s)), float(np.median(v))
 
 
+def _v_iqr(hsv: np.ndarray, mask: np.ndarray) -> float:
+    v = hsv[mask][:, 2]
+    if len(v) < MIN_PIXELS:
+        return 0.0
+    q1, q3 = np.percentile(v, [25, 75])
+    return float(q3 - q1)
+
+
+def _ring_on_coin(crop, d2, ring_mask, ring, radius) -> bool:
+    if _v_iqr(crop, ring_mask) > RING_V_IQR_MAX:
+        return False
+    out = _median_hsv(crop, _ring_mask(d2, OUTSIDE_R[0] * radius, OUTSIDE_R[1] * radius))
+    return out is None or np.hypot(ring[1] - out[1], ring[2] - out[2]) >= RING_BG_DIST_MIN
+
+
 def label_hsv(hsv: tuple[float, float, float] | None) -> str:
     if hsv is None:
         return "unknown"
@@ -69,26 +100,38 @@ def label_hsv(hsv: tuple[float, float, float] | None) -> str:
     return "unknown"
 
 
+def _bimetal_by_ratio(inner, ring) -> bool:
+    """ใจกลางอิ่มสีกว่าขอบชัดเจนและใจกลางเป็นโทนทอง = 10 บาท แม้แสงอุ่นทำให้ขอบไม่ผ่านเกณฑ์ silver"""
+    if inner is None or ring is None:
+        return False
+    h, s, _ = inner
+    return COPPER_H_MAX < h <= GOLD_H_MAX and s >= BIMETAL_S_RATIO * max(ring[1], 1.0)
+
+
 def coin_color_features(hsv_image: np.ndarray, coin: Coin) -> ColorFeatures:
     # ภาพเอียงทำให้เหรียญเป็นวงรี ใช้วงกลมรัศมีครึ่งแกนสั้นซึ่งอยู่ในเหรียญเสมอ
     r = coin.radius_px
     if coin.ellipse is not None:
         r = min(r, coin.ellipse[1] / 2)
-    # ตัดเฉพาะกรอบรอบเหรียญ ไม่ต้องคำนวณทั้งภาพ
+    # ตัดเฉพาะกรอบรอบเหรียญ (รวมพื้นหลังรอบ ๆ) ไม่ต้องคำนวณทั้งภาพ
     cx, cy = coin.center_xy
     h, w = hsv_image.shape[:2]
-    x0, x1 = max(int(cx - r) - 1, 0), min(int(cx + r) + 2, w)
-    y0, y1 = max(int(cy - r) - 1, 0), min(int(cy + r) + 2, h)
+    pad = OUTSIDE_R[1] * coin.radius_px
+    x0, x1 = max(int(cx - pad) - 1, 0), min(int(cx + pad) + 2, w)
+    y0, y1 = max(int(cy - pad) - 1, 0), min(int(cy + pad) + 2, h)
     crop = hsv_image[y0:y1, x0:x1]
     yy, xx = np.ogrid[y0:y1, x0:x1]
     d2 = (xx - cx) ** 2 + (yy - cy) ** 2
 
     inner = _median_hsv(crop, _ring_mask(d2, 0, INNER_R * r))
-    ring = _median_hsv(crop, _ring_mask(d2, RING_R[0] * r, RING_R[1] * r))
+    ring_mask = _ring_mask(d2, RING_R[0] * r, RING_R[1] * r)
+    ring = _median_hsv(crop, ring_mask)
+    if ring is not None and not _ring_on_coin(crop, d2, ring_mask, ring, coin.radius_px):
+        ring = None    # วงแหวนไม่ได้อยู่บนผิวเหรียญ (วงกลมใหญ่เกิน) ใช้สีใจกลางอย่างเดียว
     inner_label, ring_label = label_hsv(inner), label_hsv(ring)
 
     # สองสีเฉพาะเมื่อขอบเป็นสีเงินจริง ขอบ 2 บาทที่ซีดเพราะแสงสะท้อนยังเป็นสีทอง
-    if inner_label == "gold" and ring_label == "silver":
+    if (inner_label == "gold" and ring_label == "silver") or _bimetal_by_ratio(inner, ring):
         group = "bimetal"
     elif inner_label == ring_label or ring_label == "unknown":
         group = inner_label
