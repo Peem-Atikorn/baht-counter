@@ -6,12 +6,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.6703056768558951,
-      "det_recall": 0.6409185803757829,
-      "radius_err_mean_pct": 10.303203478936645,
-      "color_group_acc": 0.5717299578059072,
-      "coin_type_acc": 0.2721518987341772,
-      "preprocess_ms": 47.127735716501434
+      "det_precision": 0.7142857142857143,
+      "det_recall": 0.6471816283924844,
+      "radius_err_mean_pct": 10.007214763850127,
+      "color_group_acc": 0.930379746835443,
+      "coin_type_acc": 0.5168776371308017,
+      "preprocess_ms": 54.848071430613004
     },
     "he": {
       "images": 84,
@@ -19,12 +19,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.22180451127819548,
-      "det_recall": 0.3695198329853862,
-      "radius_err_mean_pct": 12.536348249531965,
-      "color_group_acc": 0.5717299578059072,
-      "coin_type_acc": 0.2721518987341772,
-      "preprocess_ms": 48.00115952440094
+      "det_precision": 0.46954813359528486,
+      "det_recall": 0.4989561586638831,
+      "radius_err_mean_pct": 10.292157086257978,
+      "color_group_acc": 0.930379746835443,
+      "coin_type_acc": 0.5168776371308017,
+      "preprocess_ms": 54.484196429603756
     },
     "clahe": {
       "images": 84,
@@ -32,12 +32,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.5398550724637681,
-      "det_recall": 0.6221294363256785,
-      "radius_err_mean_pct": 9.934672496914338,
-      "color_group_acc": 0.5717299578059072,
-      "coin_type_acc": 0.2721518987341772,
-      "preprocess_ms": 48.66100833411716
+      "det_precision": 0.5928853754940712,
+      "det_recall": 0.6263048016701461,
+      "radius_err_mean_pct": 9.752812996688078,
+      "color_group_acc": 0.930379746835443,
+      "coin_type_acc": 0.5168776371308017,
+      "preprocess_ms": 56.05354047674198
     },
     "clahe+wb": {
       "images": 84,
@@ -45,12 +45,12 @@
       "reject_reasons": {
         "ภาพเบลอ กรุณาถือกล้องให้นิ่งและแตะหน้าจอให้โฟกัสที่เหรียญก่อนถ่าย": 3
       },
-      "det_precision": 0.5226860254083484,
-      "det_recall": 0.6012526096033403,
-      "radius_err_mean_pct": 9.887040175508382,
-      "color_group_acc": 0.5991561181434599,
-      "coin_type_acc": 0.27637130801687765,
-      "preprocess_ms": 101.82573333267578
+      "det_precision": 0.5903614457831325,
+      "det_recall": 0.6137787056367432,
+      "radius_err_mean_pct": 9.710881131708641,
+      "color_group_acc": 0.8776371308016878,
+      "coin_type_acc": 0.4810126582278481,
+      "preprocess_ms": 115.21378333314455
     }
   },
   "web": {
@@ -60,12 +60,12 @@
       "reject_reasons": {
         "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย 480 พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง": 4
       },
-      "det_precision": 0.7931034482758621,
-      "det_recall": 0.15862068965517243,
-      "radius_err_mean_pct": 7.552926226526484,
-      "color_group_acc": 0.734375,
-      "coin_type_acc": 0.40625,
-      "preprocess_ms": 10.155537504033418
+      "det_precision": 0.8148148148148148,
+      "det_recall": 0.15172413793103448,
+      "radius_err_mean_pct": 7.484571131769998,
+      "color_group_acc": 0.671875,
+      "coin_type_acc": 0.421875,
+      "preprocess_ms": 12.526150003395742
     },
     "he": {
       "images": 8,
@@ -73,12 +73,12 @@
       "reject_reasons": {
         "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย 480 พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง": 4
       },
-      "det_precision": 0.75,
-      "det_recall": 0.14482758620689656,
-      "radius_err_mean_pct": 10.673849838201354,
-      "color_group_acc": 0.734375,
-      "coin_type_acc": 0.40625,
-      "preprocess_ms": 10.08661250671139
+      "det_precision": 0.7586206896551724,
+      "det_recall": 0.15172413793103448,
+      "radius_err_mean_pct": 10.691725583631339,
+      "color_group_acc": 0.671875,
+      "coin_type_acc": 0.421875,
+      "preprocess_ms": 12.809787494916236
     },
     "clahe": {
       "images": 8,
@@ -86,12 +86,12 @@
       "reject_reasons": {
         "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย 480 พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง": 4
       },
-      "det_precision": 0.7741935483870968,
+      "det_precision": 0.8,
       "det_recall": 0.16551724137931034,
       "radius_err_mean_pct": 6.797458735931911,
-      "color_group_acc": 0.734375,
-      "coin_type_acc": 0.40625,
-      "preprocess_ms": 10.29572499464848
+      "color_group_acc": 0.671875,
+      "coin_type_acc": 0.421875,
+      "preprocess_ms": 12.500725009886082
     },
     "clahe+wb": {
       "images": 8,
@@ -102,9 +102,9 @@
       "det_precision": 0.7931034482758621,
       "det_recall": 0.15862068965517243,
       "radius_err_mean_pct": 6.617588573760674,
-      "color_group_acc": 0.21875,
-      "coin_type_acc": 0.21875,
-      "preprocess_ms": 26.7063999963284
+      "color_group_acc": 0.328125,
+      "coin_type_acc": 0.109375,
+      "preprocess_ms": 33.330962502077455
     }
   }
 }

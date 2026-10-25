@@ -30,7 +30,7 @@ from modules.detection import detect_coins  # noqa: E402
 from modules.preprocess import preprocess  # noqa: E402
 from run_eval import find_image, gt_coins, load_labels, load_splits, match  # noqa: E402
 
-# ชื่อ -> (enhance, white_balance); "clahe" คือวิธีที่ระบบใช้อยู่
+# ชื่อ -> (enhance, white_balance); "none" คือวิธีที่ระบบใช้อยู่ (preprocess.DEFAULT_ENHANCE)
 VARIANTS = {
     "none": ("none", False),
     "he": ("he", False),
