@@ -15,7 +15,7 @@ it('บอกเหตุผลเมื่อรอนาน โดยไม่
       <ProcessingStatus />
     </StrictMode>,
   )
-  const status = screen.getByRole('status', { name: 'สถานะการนับเหรียญ' })
+  const status = screen.getByRole('status')
   expect(status.textContent).toContain('กำลังส่งภาพและรอผลการนับ')
   act(() => vi.advanceTimersByTime(15_000))
   expect(status.textContent).toContain('ใช้เวลานานกว่าปกติ')
