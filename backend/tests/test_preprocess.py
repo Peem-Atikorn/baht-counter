@@ -93,8 +93,9 @@ def test_gray_is_enhanced_and_debug_images_are_returned():
     result = pp.preprocess(image)
     plain_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     assert result.gray.shape == plain_gray.shape
-    assert not np.array_equal(result.gray, plain_gray)  # ผ่าน CLAHE + median แล้ว
-    assert set(result.debug_images) == {"gray", "clahe", "enhanced"}
+    # ค่าเริ่มต้น enhance="none" ไม่เพิ่มความต่าง ผ่านแค่ median
+    assert np.array_equal(result.gray, cv2.medianBlur(plain_gray, pp.MEDIAN_KSIZE))
+    assert set(result.debug_images) == {"gray", "enhanced"}
     assert np.array_equal(result.debug_images["enhanced"], result.gray)
 
 
@@ -109,7 +110,7 @@ def test_pipeline_uses_real_preprocess_reason(monkeypatch):
     monkeypatch.setenv("COIN_USE_MOCK", "detection,classification")
     ok, debug, _ = pipeline.run(coin_photo())
     assert ok.status != "failed"
-    assert {"gray", "clahe", "enhanced"} <= set(debug)
+    assert {"gray", "enhanced"} <= set(debug)
 
     blurry, _, _ = pipeline.run(motion_blur(coin_photo(), 15))
     assert blurry.status == "failed"

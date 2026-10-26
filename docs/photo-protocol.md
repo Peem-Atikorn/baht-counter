@@ -64,4 +64,4 @@ python data/dataset.py check
 python data/preprocess_experiment.py          # ใช้ชุด tune
 ```
 
-เปรียบเทียบ `none` / `he` (Histogram Equalization) / `clahe` (วิธีที่ใช้อยู่) / `clahe+wb` (เพิ่ม gray-world white balance) วัด Precision/Recall และความคลาดรัศมีของการหาเหรียญ กับความถูกต้องของกลุ่มสีและชนิด ผลอยู่ที่ `data/results/preprocess_experiment.md` ใช้เป็นตารางก่อน/หลังปรับปรุงภาพในรายงาน
+เปรียบเทียบ `none` (วิธีที่ใช้อยู่) / `he` (Histogram Equalization) / `clahe` / `clahe+wb` (เพิ่ม gray-world white balance) วัด Precision/Recall และความคลาดรัศมีของการหาเหรียญ กับความถูกต้องของกลุ่มสีและชนิด ผลอยู่ที่ `data/results/preprocess_experiment.md` ใช้เป็นตารางก่อน/หลังปรับปรุงภาพในรายงาน
