@@ -54,6 +54,9 @@ MEDIAN_KSIZE = 5
 
 # วิธีเพิ่มความต่างของภาพเทาก่อน median filter: none = ไม่ปรับ, he = Histogram Equalization ทั้งภาพ, clahe = ปรับทีละบริเวณ
 ENHANCE_METHODS = ("none", "he", "clahe")
+# ค่าเริ่มต้นเป็น none: ชุด tune หลัง #41 การหาเหรียญ Precision 71.4% vs 59.3% ของ clahe
+# เพราะ CLAHE ดึงลายผ้าให้ชัดจนถูกจับเป็นเหรียญ (data/results/preprocess_experiment.md, ตกลงกับส่วนที่ 2 ใน #34)
+DEFAULT_ENHANCE = "none"
 
 MSG_TOO_SMALL = "ภาพเล็กเกินไป กรุณาใช้ภาพที่ด้านสั้นอย่างน้อย {n} พิกเซล หรือถ่ายใหม่ด้วยความละเอียดเต็มของกล้อง"
 MSG_TOO_DARK = "ภาพมืดเกินไป กรุณาเปิดไฟหรือถ่ายในที่สว่างขึ้น"
@@ -72,7 +75,7 @@ class ImageQuality:
 
 
 def image_quality(gray: np.ndarray) -> ImageQuality:
-    """วัดค่าที่ใช้ตัดสินคุณภาพจากภาพเทาหลังย่อ (ก่อน CLAHE เพื่อให้เห็นแสงจริงของภาพ)"""
+    """วัดค่าที่ใช้ตัดสินคุณภาพจากภาพเทาหลังย่อ (ก่อนเพิ่มความต่าง เพื่อให้เห็นแสงจริงของภาพ)"""
     gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
     magnitude = cv2.magnitude(gx, gy)
@@ -123,11 +126,13 @@ def gray_world(image: np.ndarray) -> np.ndarray:
     return np.clip(image.astype(np.float32) * gains, 0, 255).astype(np.uint8)
 
 
-def preprocess(image: np.ndarray, enhance: str = "clahe", white_balance: bool = False) -> PreprocessResult:
+def preprocess(
+    image: np.ndarray, enhance: str = DEFAULT_ENHANCE, white_balance: bool = False,
+) -> PreprocessResult:
     """รับภาพ BGR ที่หมุนตาม EXIF แล้ว (app ทำตอนอ่านไฟล์)
 
     - `image`: ภาพสีหลังย่อ **ไม่ปรับสี** เพราะส่วนที่ 3 วัดสี HSV จากภาพนี้ (ยกเว้น white_balance=True)
-    - `gray`: ภาพเทาหลัง CLAHE (เพิ่มความต่างระหว่างเหรียญกับพื้น) และ median filter (ลดจุดรบกวนและลายพื้นโต๊ะ)
+    - `gray`: ภาพเทาหลัง median filter (ลดจุดรบกวนและลายพื้นโต๊ะ) ค่าเริ่มต้นไม่เพิ่มความต่างก่อน (ดู DEFAULT_ENHANCE)
     - ภาพที่ใช้ไม่ได้ได้ `status="failed"` พร้อม `reason` ภาษาไทย แต่ยังคืนภาพไว้ให้หน้า "เกี่ยวกับ" แสดงได้
     - `enhance` / `white_balance` ใช้เปรียบเทียบในการทดลอง ค่าเริ่มต้นคือวิธีที่ระบบใช้จริง
     """
