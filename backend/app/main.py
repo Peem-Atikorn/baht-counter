@@ -46,8 +46,11 @@ logging.basicConfig(level=logging.INFO)
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 MAX_PIXELS = 50_000_000  # ไฟล์เล็กแต่ความละเอียดสูงมาก (เช่น PNG สีพื้น) ใช้หน่วยความจำมหาศาลตอนถอดรหัส
-# preprocess (ส่วนที่ 1) ย่อเหลือด้านยาว TARGET_LONG_SIDE=1600 อยู่แล้ว ถอดรหัสเกินนี้ไม่ได้ความแม่นเพิ่ม
-# เผื่อ 2 เท่าไว้ให้ cv2.resize(INTER_AREA) ของ preprocess มีพิกเซลตั้งต้นพอสมควร (ไม่ย่อจากภาพเล็กเกินไป)
+# preprocess (ส่วนที่ 1) ย่อเหลือด้านยาว TARGET_LONG_SIDE=1600 อยู่แล้ว เผื่อ 2 เท่าไว้ให้ cv2.resize
+# (INTER_AREA) ของ preprocess มีพิกเซลตั้งต้นพอสมควร (ไม่ย่อจากภาพเล็กเกินไป) — วัดแล้วถอดรหัสเกินนี้ *มี*
+# ผลต่อความแม่นเล็กน้อยกับภาพความละเอียดสูงมาก (เช่น 4284×5712 ที่ libjpeg draft ย่อขั้นกลางเหลือ 2856 ก่อน
+# preprocess ย่อซ้ำเป็น 1600 แทนที่จะย่อจาก 5712 ตรง) เป็นการแลกที่ทีมตัดสินใจรับไว้ เพราะ Render ล่ม (OOM)
+# แย่กว่าหาเหรียญเจอน้อยลง ~2.5 จุด (ดูตารางผลวัดชุด tune ใน docs/backend.md หัวข้อ "สาเหตุ Render ล่ม")
 DECODE_LONG_SIDE = 2 * TARGET_LONG_SIDE
 ORIENTATION_TAG = 0x0112
 EXIF_ORIENTATIONS_THAT_SWAP_WH = {5, 6, 7, 8}
@@ -75,8 +78,11 @@ def decode_image(data: bytes) -> tuple[np.ndarray, tuple[int, int]]:
     """อ่านไฟล์ (รวม HEIC) หมุนตาม EXIF orientation แล้วคืน (ภาพ BGR สำหรับประมวลผล, ขนาดภาพต้นฉบับ)
 
     ถอดรหัสแบบย่อไม่เกิน DECODE_LONG_SIDE แทนเต็มความละเอียด (preprocess ย่อเหลือ TARGET_LONG_SIDE อยู่ดี
-    ถอดรหัสเต็มภาพ 20+ ล้านพิกเซลเปลืองหน่วยความจำหลายร้อย MB ต่อ request โดยไม่ได้ความแม่นเพิ่ม — เคยทำให้
-    Render ล่ม ดู docs/backend.md) `original_size` คือ (กว้าง, สูง) ของภาพต้นฉบับ**หลังหมุน EXIF** ไม่ใช่ของ
+    ถอดรหัสเต็มภาพ 20+ ล้านพิกเซลเปลืองหน่วยความจำหลายร้อย MB ต่อ request จนเคยทำให้ Render ล่ม — วัดด้วย
+    `eval/run_eval.py --split tune` แล้วพบว่าการย่อนี้กระทบความแม่นของการหาเหรียญเล็กน้อยกับภาพความละเอียด
+    สูงมาก (ไม่ใช่ศูนย์อย่างที่เข้าใจผิดไว้ก่อนหน้า) เป็นการแลกที่ทีมตัดสินใจรับไว้แล้ว เพราะ Render ล่มร้ายแรง
+    กว่า ดู docs/backend.md หัวข้อ "สาเหตุ Render ล่ม (OOM) และการแก้ไข" สำหรับตารางผลวัด) `original_size`
+    คือ (กว้าง, สูง) ของภาพต้นฉบับ**หลังหมุน EXIF** ไม่ใช่ของ
     ภาพที่ถอดรหัสมา ใช้แปลงพิกัดกลับที่จุดเดียวใน pipeline.py (พารามิเตอร์ `original_size` ของ pipeline.run/
     reclassify/locate_added_coin) เพื่อให้พิกัดที่ frontend ได้รับยังเป็นพิกัดภาพต้นฉบับเหมือนเดิมเสมอ
     """
@@ -127,7 +133,11 @@ def encode_png(img: np.ndarray) -> bytes:
 
 
 def encode_display_jpeg(image: np.ndarray) -> bytes:
-    """ภาพสำหรับเว็บจากพิกัดต้นฉบับหลังหมุน EXIF แล้ว ไม่ใช้ภาพย่อของ pipeline"""
+    """ภาพสำหรับเว็บ (ใช้แทนต้นฉบับ HEIC ที่เบราว์เซอร์เปิดตรงไม่ได้) — ไม่ใช้ภาพย่อของ pipeline (≤
+    TARGET_LONG_SIDE) แต่ก็ไม่ใช่ภาพเต็มความละเอียดของไฟล์ต้นฉบับเช่นกัน เพราะ `image` ที่ส่งเข้ามาคือภาพจาก
+    `decode_image` ซึ่งถอดรหัสแบบย่อไว้แล้ว (ด้านยาว ≤ DECODE_LONG_SIDE) การวางวงกลมเหรียญยังตรงตำแหน่งเสมอ
+    เพราะ `CoinOverlay` ของ frontend ใช้ viewBox ตาม `image_size` (ขนาดภาพต้นฉบับจริง ไม่ใช่ขนาดไฟล์ภาพนี้)
+    และสัดส่วนภาพ (aspect ratio) เท่าต้นฉบับเสมอ ไม่ได้พึ่ง `naturalWidth` ของ `<img>`"""
     ok, buf = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 90])
     if not ok:
         raise HTTPException(500, "สร้างภาพสำหรับแสดงผลไม่สำเร็จ")
