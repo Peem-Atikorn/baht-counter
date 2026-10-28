@@ -173,17 +173,17 @@
         "gt_coins": 212,
         "det_precision": 1.0,
         "det_recall": 1.0,
-        "coin_accuracy": 0.6179245283018868,
-        "coin_accuracy_detected": 0.6179245283018868,
-        "total_exact_pct": 34.883720930232556,
-        "total_mae_baht": 1.296875,
-        "total_undecided_pct": 25.58139534883721,
+        "coin_accuracy": 0.6037735849056604,
+        "coin_accuracy_detected": 0.6037735849056604,
+        "total_exact_pct": 32.55813953488372,
+        "total_mae_baht": 1.303030303030303,
+        "total_undecided_pct": 23.25581395348837,
         "needs_confirmation_pct": 65.11627906976744,
         "failed_pct": 0.0,
         "per_type": {
           "THB_0_25": {
             "coins": 51,
-            "accuracy": 0.5686274509803921
+            "accuracy": 0.6274509803921569
           },
           "THB_0_50": {
             "coins": 36,
@@ -191,7 +191,7 @@
           },
           "THB_1": {
             "coins": 51,
-            "accuracy": 0.7058823529411765
+            "accuracy": 0.5882352941176471
           },
           "THB_2": {
             "coins": 4,
@@ -208,9 +208,8 @@
         },
         "confusion": {
           "THB_0_25": {
-            "none": 9,
-            "THB_0_25": 29,
-            "THB_0_50": 13
+            "THB_0_25": 32,
+            "THB_0_50": 19
           },
           "THB_0_50": {
             "THB_0_25": 17,
@@ -218,8 +217,8 @@
             "unknown": 3
           },
           "THB_1": {
-            "THB_1": 36,
-            "none": 8,
+            "none": 14,
+            "THB_1": 30,
             "THB_5": 6,
             "unknown": 1
           },
