@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from modules.classification import total_baht as calc_total_baht
+from modules.preprocess import TARGET_LONG_SIDE
 from schemas import (
     COIN_TYPES,
     COIN_TYPES_BY_CODE,
@@ -45,6 +46,14 @@ logging.basicConfig(level=logging.INFO)
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 MAX_PIXELS = 50_000_000  # ไฟล์เล็กแต่ความละเอียดสูงมาก (เช่น PNG สีพื้น) ใช้หน่วยความจำมหาศาลตอนถอดรหัส
+# preprocess (ส่วนที่ 1) ย่อเหลือด้านยาว TARGET_LONG_SIDE=1600 อยู่แล้ว เผื่อ 2 เท่าไว้ให้ cv2.resize
+# (INTER_AREA) ของ preprocess มีพิกเซลตั้งต้นพอสมควร (ไม่ย่อจากภาพเล็กเกินไป) — วัดแล้วถอดรหัสเกินนี้ *มี*
+# ผลต่อความแม่นเล็กน้อยกับภาพความละเอียดสูงมาก (เช่น 4284×5712 ที่ libjpeg draft ย่อขั้นกลางเหลือ 2856 ก่อน
+# preprocess ย่อซ้ำเป็น 1600 แทนที่จะย่อจาก 5712 ตรง) เป็นการแลกที่ทีมตัดสินใจรับไว้ เพราะ Render ล่ม (OOM)
+# แย่กว่าหาเหรียญเจอน้อยลง ~2.5 จุด (ดูตารางผลวัดชุด tune ใน docs/backend.md หัวข้อ "สาเหตุ Render ล่ม")
+DECODE_LONG_SIDE = 2 * TARGET_LONG_SIDE
+ORIENTATION_TAG = 0x0112
+EXIF_ORIENTATIONS_THAT_SWAP_WH = {5, 6, 7, 8}
 EXT_BY_CONTENT_TYPE = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -65,18 +74,57 @@ ALLOWED_TYPES = set(EXT_BY_CONTENT_TYPE)
 app = FastAPI(title="baht-counter API")
 
 
-def decode_image(data: bytes) -> np.ndarray:
-    """อ่านไฟล์ (รวม HEIC) หมุนตาม EXIF orientation แล้วคืนภาพ BGR"""
+def decode_image(data: bytes) -> tuple[np.ndarray, tuple[int, int]]:
+    """อ่านไฟล์ (รวม HEIC) หมุนตาม EXIF orientation แล้วคืน (ภาพ BGR สำหรับประมวลผล, ขนาดภาพต้นฉบับ)
+
+    ถอดรหัสแบบย่อไม่เกิน DECODE_LONG_SIDE แทนเต็มความละเอียด (preprocess ย่อเหลือ TARGET_LONG_SIDE อยู่ดี
+    ถอดรหัสเต็มภาพ 20+ ล้านพิกเซลเปลืองหน่วยความจำหลายร้อย MB ต่อ request จนเคยทำให้ Render ล่ม — วัดด้วย
+    `eval/run_eval.py --split tune` แล้วพบว่าการย่อนี้กระทบความแม่นของการหาเหรียญเล็กน้อยกับภาพความละเอียด
+    สูงมาก (ไม่ใช่ศูนย์อย่างที่เข้าใจผิดไว้ก่อนหน้า) เป็นการแลกที่ทีมตัดสินใจรับไว้แล้ว เพราะ Render ล่มร้ายแรง
+    กว่า ดู docs/backend.md หัวข้อ "สาเหตุ Render ล่ม (OOM) และการแก้ไข" สำหรับตารางผลวัด) `original_size`
+    คือ (กว้าง, สูง) ของภาพต้นฉบับ**หลังหมุน EXIF** ไม่ใช่ของ
+    ภาพที่ถอดรหัสมา ใช้แปลงพิกัดกลับที่จุดเดียวใน pipeline.py (พารามิเตอร์ `original_size` ของ pipeline.run/
+    reclassify/locate_added_coin) เพื่อให้พิกัดที่ frontend ได้รับยังเป็นพิกัดภาพต้นฉบับเหมือนเดิมเสมอ
+    """
     try:
         img = Image.open(io.BytesIO(data))
-        if img.width * img.height > MAX_PIXELS:
+        pre_w, pre_h = img.width, img.height  # ขนาดไฟล์ก่อนหมุน EXIF (ใช้ตรวจ MAX_PIXELS และขอ draft())
+        if pre_w * pre_h > MAX_PIXELS:
             raise HTTPException(413, "ภาพมีความละเอียดสูงเกินไป กรุณาใช้ภาพไม่เกิน 50 ล้านพิกเซล")
-        img = ImageOps.exif_transpose(img).convert("RGB")
+
+        orientation = img.getexif().get(ORIENTATION_TAG, 1)
+        original_size = (
+            (pre_h, pre_w) if orientation in EXIF_ORIENTATIONS_THAT_SWAP_WH else (pre_w, pre_h)
+        )
+
+        # factor จำนวนเต็ม (ไม่ใช่ 1/2,1/4,1/8 ของ draft โดยตรง) — ปัดขึ้นเสมอเพื่อไม่ให้เกิน DECODE_LONG_SIDE
+        # DECODE_LONG_SIDE = 2×TARGET_LONG_SIDE จึงยังไม่หลุดต่ำกว่า TARGET_LONG_SIDE แม้กรณีขอบ (ดูเทสต์)
+        long_side = max(pre_w, pre_h)
+        factor = max(1, -(-long_side // DECODE_LONG_SIDE))  # ceiling division แบบจำนวนเต็ม
+        if img.format == "JPEG" and factor > 1:
+            # libjpeg ถอดรหัสแบบย่อ (ได้แค่ 1/2, 1/4, 1/8 เท่านั้น PIL จะเลือกตัวที่ยัง >= ขนาดที่ขอ)
+            img.draft("RGB", (pre_w // factor, pre_h // factor))
+        img.load()
+
+        if max(img.width, img.height) > DECODE_LONG_SIDE:
+            # เกิดได้ 2 กรณี: (1) รูปแบบอื่น (PNG/WebP/HEIC) ไม่มี draft() เลยยังเต็มขนาดอยู่
+            # (2) draft ของ JPEG เลือกได้แค่ 1/2,1/4,1/8 ซึ่งหยาบกว่า factor ที่ต้องการ — ย่อซ้ำให้ตรงเป้า
+            remaining = max(1, -(-max(img.width, img.height) // DECODE_LONG_SIDE))
+            reduced = img.reduce(remaining)
+            img.close()
+            img = reduced
+
+        transposed = ImageOps.exif_transpose(img)
+        img.close()
+        rgb = transposed.convert("RGB")
+        transposed.close()
     except Image.DecompressionBombError:
         raise HTTPException(413, "ภาพมีความละเอียดสูงเกินไป กรุณาใช้ภาพไม่เกิน 50 ล้านพิกเซล")
     except (UnidentifiedImageError, OSError):
         raise HTTPException(400, "อ่านไฟล์ภาพไม่ได้ กรุณาใช้ไฟล์ JPEG, PNG, WebP หรือ HEIC")
-    return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
+
+    bgr = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2BGR)
+    return bgr, original_size
 
 
 def encode_png(img: np.ndarray) -> bytes:
@@ -85,7 +133,11 @@ def encode_png(img: np.ndarray) -> bytes:
 
 
 def encode_display_jpeg(image: np.ndarray) -> bytes:
-    """ภาพสำหรับเว็บจากพิกัดต้นฉบับหลังหมุน EXIF แล้ว ไม่ใช้ภาพย่อของ pipeline"""
+    """ภาพสำหรับเว็บ (ใช้แทนต้นฉบับ HEIC ที่เบราว์เซอร์เปิดตรงไม่ได้) — ไม่ใช้ภาพย่อของ pipeline (≤
+    TARGET_LONG_SIDE) แต่ก็ไม่ใช่ภาพเต็มความละเอียดของไฟล์ต้นฉบับเช่นกัน เพราะ `image` ที่ส่งเข้ามาคือภาพจาก
+    `decode_image` ซึ่งถอดรหัสแบบย่อไว้แล้ว (ด้านยาว ≤ DECODE_LONG_SIDE) การวางวงกลมเหรียญยังตรงตำแหน่งเสมอ
+    เพราะ `CoinOverlay` ของ frontend ใช้ viewBox ตาม `image_size` (ขนาดภาพต้นฉบับจริง ไม่ใช่ขนาดไฟล์ภาพนี้)
+    และสัดส่วนภาพ (aspect ratio) เท่าต้นฉบับเสมอ ไม่ได้พึ่ง `naturalWidth` ของ `<img>`"""
     ok, buf = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 90])
     if not ok:
         raise HTTPException(500, "สร้างภาพสำหรับแสดงผลไม่สำเร็จ")
@@ -106,7 +158,7 @@ def get_or_404(analysis_id: str) -> dict:
     return record
 
 
-def load_original(record: dict) -> np.ndarray:
+def load_original(record: dict) -> tuple[np.ndarray, tuple[int, int]]:
     data = storage.load_image(record["id"], f"original{record['original_ext']}")
     if data is None:  # ไม่ควรเกิดถ้า storage/ ไม่ถูกลบนอกระบบ
         raise HTTPException(404, "ไม่พบภาพต้นฉบับของผลการนับนี้")
@@ -178,8 +230,10 @@ def create_analysis(file: UploadFile, response: Response):
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "ไฟล์ใหญ่เกิน 15 MB")
 
-    image = decode_image(data)
-    result, debug, timings = pipeline.run(image)
+    t_decode = time.perf_counter()
+    image, original_size = decode_image(data)
+    decode_sec = time.perf_counter() - t_decode
+    result, debug, timings = pipeline.run(image, original_size=original_size)
 
     t_save = time.perf_counter()
     analysis_id = uuid.uuid4().hex
@@ -197,7 +251,8 @@ def create_analysis(file: UploadFile, response: Response):
     save_sec = time.perf_counter() - t_save
 
     # Server-Timing: เวลาแต่ละขั้นจริงของ request นี้ ไม่ปนกับผลเก่าหรือ request อื่น (ดู docs/backend.md)
-    response.headers["Server-Timing"] = format_server_timing({**timings, "save": save_sec})
+    # decode มาก่อน preprocess เสมอ (ลำดับที่ทำงานจริงใน create_analysis)
+    response.headers["Server-Timing"] = format_server_timing({"decode": decode_sec, **timings, "save": save_sec})
     return AnalysisResponse(analysis_id=analysis_id, result=result)
 
 
@@ -214,7 +269,8 @@ def get_image(analysis_id: str, name: str):
         data = storage.load_image(analysis_id, "display.jpg")
         if data is None:
             # ผลเก่าก่อนเพิ่ม display.jpg ต้องเปิดจากประวัติได้ด้วย
-            data = encode_display_jpeg(load_original(record))
+            image, _ = load_original(record)
+            data = encode_display_jpeg(image)
             storage.save_image(analysis_id, "display.jpg", data)
         return Response(data, media_type="image/jpeg")
     filename = f"original{record['original_ext']}" if name == "original" else f"{name}.png"
@@ -237,9 +293,9 @@ def update_coin(analysis_id: str, coin_id: int, body: CoinUpdate):
     # และไม่ใช่เหรียญที่ผู้ใช้เพิ่มเองด้วยรัศมีสมมติ (ดู pipeline.locate_added_coin, docs/backend.md)
     use_as_anchor = body.coin_type != "unknown" and coin_id not in record["fake_radius_coin_ids"]
     if use_as_anchor:
-        image = load_original(record)
+        image, original_size = load_original(record)
         try:
-            result = pipeline.reclassify(image, coins, anchor=(coin_id, body.coin_type))
+            result = pipeline.reclassify(image, coins, anchor=(coin_id, body.coin_type), original_size=original_size)
         except ValueError as exc:
             raise HTTPException(400, f"เลือกชนิดเหรียญนี้ไม่ได้: {exc}")
         edited = next(c for c in result.coins if c.coin_id == coin_id).model_copy(
@@ -264,8 +320,8 @@ def add_coin(analysis_id: str, body: CoinCreate):
     if not (0 <= x < w and 0 <= y < h):
         raise HTTPException(422, "พิกัดอยู่นอกภาพ")
 
-    image = load_original(record)
-    located = pipeline.locate_added_coin(image, body.xy, coins)
+    image, original_size = load_original(record)
+    located = pipeline.locate_added_coin(image, body.xy, coins, original_size=original_size)
     if located is None:
         raise HTTPException(422, "ปรับปรุงภาพไม่สำเร็จ เพิ่มเหรียญไม่ได้")
     new_coin, is_fake_radius = located

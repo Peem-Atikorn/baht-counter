@@ -33,7 +33,7 @@ def test_heif_display_is_jpeg_with_original_coordinates(media, extension, orient
     assert response.status_code == 201
     body = response.json()
     aid = body["analysis_id"]
-    expected = main.decode_image(data)
+    expected, _ = main.decode_image(data)
     height, width = expected.shape[:2]
     assert (width, height) == ((80, 120) if orientation == 6 else (120, 80))
     assert body["result"]["image_size"] == [width, height]
@@ -47,7 +47,8 @@ def test_heif_display_is_jpeg_with_original_coordinates(media, extension, orient
     with Image.open(io.BytesIO(display.content)) as jpeg:
         assert jpeg.getexif().get(274, 1) == 1
     assert storage.load_image(aid, f"original{extension}") == data
-    assert np.array_equal(main.load_original(main.get_or_404(aid)), expected)
+    loaded, _ = main.load_original(main.get_or_404(aid))
+    assert np.array_equal(loaded, expected)
 
     # ส่งผลที่แก้แล้วออกเป็นป้าย: zip ยังเก็บ HEIC เดิม ไม่ใช้ JPEG สำหรับแสดงผล
     edited = client.put(f"/api/analyses/{aid}/coins/0", json={"coin_type": "unknown"})

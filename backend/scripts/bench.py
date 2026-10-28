@@ -24,7 +24,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 WAKEUP_TIMEOUT_SEC = 120
 TARGET_SERVER_SEC = 2.0
-STAGE_ORDER = ["preprocess", "detection", "classification", "save"]
+STAGE_ORDER = ["decode", "preprocess", "detection", "classification", "save"]
 CONTENT_TYPE_BY_SUFFIX = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -64,15 +64,55 @@ def parse_server_timing(header: str) -> dict[str, float]:
     return result
 
 
-def average_timings(timings_list: list[dict[str, float]]) -> dict[str, float]:
-    """เฉลี่ยเวลาแต่ละขั้นจากหลาย request ของภาพเดียวกัน (ข้ามรายการที่ไม่มีขั้นนั้น ไม่ถือเป็น 0)"""
-    sums: dict[str, float] = {}
-    counts: dict[str, int] = {}
-    for timings in timings_list:
-        for stage, seconds in timings.items():
-            sums[stage] = sums.get(stage, 0.0) + seconds
-            counts[stage] = counts.get(stage, 0) + 1
-    return {stage: sums[stage] / counts[stage] for stage in sums}
+def summarize_row(outcomes: list[dict]) -> dict:
+    """สรุปผลวัดของภาพเดียวจาก outcome ของแต่ละครั้งที่อัปโหลด (ผลจาก `upload_once`)
+
+    คำนวณ `avg_request_sec`/`avg_other_sec`/เวลาแต่ละขั้น จากเฉพาะ request ที่ "ใช้ได้" (`ok` และมี
+    `server_timing`) เท่านั้น — request ที่ล้มเหลวหรือไม่มี header `Server-Timing` ไม่ปนเข้ามาในค่าเฉลี่ยไหนเลย
+    (เดิม `avg_request_sec` เฉลี่ยทุก request แต่เวลาแต่ละขั้นเฉลี่ยเฉพาะที่สำเร็จ ลบกันแล้วเพี้ยน)
+
+    `other_sec` ของแต่ละ request = `request_sec` − รวมเวลาทุกขั้นของ request นั้น (ไม่ใช่ค่าเฉลี่ยลบค่าเฉลี่ย)
+
+    คืน `stage_secs` เป็น `{ขั้น: {"avg": วินาทีเฉลี่ย, "count": จำนวน request ที่มีขั้นนี้}}` เพราะบาง request
+    (เช่น preprocess ปฏิเสธ หรือไม่พบเหรียญ) ไม่มีบางขั้นเลย ไม่ควรเฉลี่ยเหมือนมีค่า 0
+
+    `avg_stage_total_sec` = เฉลี่ยของ "ผลรวมขั้นของ request นั้นๆ" (รวมก่อนแล้วค่อยเฉลี่ย) ไม่ใช่ผลรวมของค่า
+    เฉลี่ยแต่ละขั้น — ถ้า request บางอันไม่มีบางขั้น (เช่น classification ตอนไม่ครบ) เอาผลรวมของค่าเฉลี่ยแต่ละ
+    ขั้นมาบวกกันจะสูงเกินจริง (รีวิว PR #39 ข้อ 5) เพราะขั้นที่ไม่ครบถูกเฉลี่ยจากฐานที่เล็กกว่า n_usable
+
+    ไม่ throw แม้ไม่มี request ที่ใช้ได้เลย (ทุกครั้งล้มเหลว หรือไม่มี header) — คืน `avg_request_sec`/
+    `avg_other_sec`/`avg_stage_total_sec` เป็น `None` และ `stage_secs` เป็น dict ว่างแทน
+    """
+    usable = [o for o in outcomes if o.get("ok") and o.get("server_timing")]
+    fail_count = sum(1 for o in outcomes if not o.get("ok"))
+
+    stage_sums: dict[str, float] = {}
+    stage_counts: dict[str, int] = {}
+    request_secs: list[float] = []
+    other_secs: list[float] = []
+    stage_total_secs: list[float] = []
+    for o in usable:
+        timing = o["server_timing"]
+        request_secs.append(o["request_sec"])
+        other_secs.append(o["request_sec"] - sum(timing.values()))
+        stage_total_secs.append(sum(timing.values()))
+        for stage, seconds in timing.items():
+            stage_sums[stage] = stage_sums.get(stage, 0.0) + seconds
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+
+    n_usable = len(usable)
+    return {
+        "n_total": len(outcomes),
+        "n_usable": n_usable,
+        "fail_count": fail_count,
+        "avg_request_sec": (sum(request_secs) / n_usable) if n_usable else None,
+        "avg_other_sec": (sum(other_secs) / n_usable) if n_usable else None,
+        "avg_stage_total_sec": (sum(stage_total_secs) / n_usable) if n_usable else None,
+        "stage_secs": {
+            stage: {"avg": stage_sums[stage] / stage_counts[stage], "count": stage_counts[stage]}
+            for stage in stage_sums
+        },
+    }
 
 
 def wait_for_health(client: httpx.Client, url: str) -> float:
@@ -158,56 +198,52 @@ def main() -> None:
 
         rows = []
         for path in image_paths:
-            request_secs: list[float] = []
-            server_timings: list[dict[str, float]] = []
-            errors: list[str] = []
-            last_ok: dict | None = None
-            for _ in range(args.repeat):
-                outcome = upload_once(client, url, path)
-                request_secs.append(outcome["request_sec"])
-                if outcome["ok"]:
-                    last_ok = outcome
-                    server_timings.append(outcome["server_timing"])
-                else:
-                    errors.append(outcome["error"])
-
+            outcomes = [upload_once(client, url, path) for _ in range(args.repeat)]
+            last_ok = next((o for o in reversed(outcomes) if o["ok"]), None)
             rows.append({
                 "image": path.name,
                 "size_kb": path.stat().st_size / 1024,
                 "resolution": image_resolution(path),
-                "request_secs": request_secs,
                 "status": last_ok["status"] if last_ok else None,
                 "coin_count": last_ok["coin_count"] if last_ok else None,
-                "errors": errors,
-                "stage_secs": average_timings(server_timings),
-                "has_timing": any(server_timings),
+                "errors": [o["error"] for o in outcomes if not o["ok"]],
+                "summary": summarize_row(outcomes),
             })
 
-    stage_names = [s for s in STAGE_ORDER if any(s in row["stage_secs"] for row in rows)]
-    extra_stages = sorted({s for row in rows for s in row["stage_secs"]} - set(stage_names))
+    stage_names = [s for s in STAGE_ORDER if any(s in row["summary"]["stage_secs"] for row in rows)]
+    extra_stages = sorted({s for row in rows for s in row["summary"]["stage_secs"]} - set(stage_names))
     stage_names += extra_stages
 
     col_header = f"{'ภาพ':<28}{'ขนาด':>9}{'ความละเอียด':>14}{'เฉลี่ย(s)':>11}"
-    col_header += "".join(f"{s:>16}" for s in stage_names) + f"{'เครือข่าย/อื่นๆ':>16}{'status':>20}{'เหรียญ':>7}"
+    col_header += "".join(f"{s:>18}" for s in stage_names)
+    col_header += f"{'เครือข่าย/อื่นๆ':>16}{'ล้มเหลว':>9}{'status':>20}{'เหรียญ':>7}"
     print(col_header)
     print("-" * len(col_header))
 
     any_missing_timing = False
     for row in rows:
-        avg_request = sum(row["request_secs"]) / len(row["request_secs"])
+        summary = row["summary"]
         status = row["status"] or f"ERROR x{len(row['errors'])}"
         coins = row["coin_count"] if row["coin_count"] is not None else "-"
-        line = f"{row['image']:<28}{row['size_kb']:>7.0f}KB{row['resolution']:>14}{avg_request:>11.2f}"
-        if row["has_timing"]:
+        line = f"{row['image']:<28}{row['size_kb']:>7.0f}KB{row['resolution']:>14}"
+
+        if summary["avg_request_sec"] is not None:
+            n_usable = summary["n_usable"]
+            line += f"{summary['avg_request_sec']:>11.2f}"
             for stage in stage_names:
-                sec = row["stage_secs"].get(stage)
-                line += f"{sec:>16.3f}" if sec is not None else f"{'-':>16}"
-            other = avg_request - sum(row["stage_secs"].values())
-            line += f"{other:>16.3f}"
+                cell = summary["stage_secs"].get(stage)
+                if cell is None:
+                    line += f"{'-':>18}"
+                elif cell["count"] == n_usable:
+                    line += f"{cell['avg']:>18.3f}"
+                else:
+                    cell_text = f"{cell['avg']:.3f} ({cell['count']}/{n_usable})"
+                    line += f"{cell_text:>18}"
+            line += f"{summary['avg_other_sec']:>16.3f}"
         else:
             any_missing_timing = True
-            line += "".join(f"{'-':>16}" for _ in stage_names) + f"{'(ไม่มี header)':>16}"
-        line += f"{status:>20}{coins!s:>7}"
+            line += f"{'-':>11}" + "".join(f"{'-':>18}" for _ in stage_names) + f"{'(ไม่มีข้อมูล)':>16}"
+        line += f"{summary['fail_count']:>9}{status:>20}{coins!s:>7}"
         print(line)
         for err in row["errors"]:
             print(f"    ! {err}")
@@ -215,16 +251,16 @@ def main() -> None:
     print()
     if any_missing_timing:
         print(
-            "คำเตือน: บางภาพไม่มี header Server-Timing กลับมา (เซิร์ฟเวอร์รุ่นเก่า?) "
-            "คอลัมน์เวลาแต่ละขั้นของภาพนั้นจึงว่าง\n",
+            "คำเตือน: บางภาพไม่มี request ที่สำเร็จและมี header Server-Timing เลย "
+            "(ล้มเหลวทั้งหมด หรือเซิร์ฟเวอร์รุ่นเก่าไม่มี header) คอลัมน์เวลาของภาพนั้นจึงว่าง\n",
         )
 
-    timed_rows = [row for row in rows if row["has_timing"]]
+    timed_rows = [row for row in rows if row["summary"]["avg_request_sec"] is not None]
     if not timed_rows:
-        print("ไม่มี request ไหนมี Server-Timing header เลย — วัดเวลาแต่ละขั้นไม่ได้")
+        print("ไม่มี request ไหนสำเร็จและมี Server-Timing header เลย — วัดเวลาแต่ละขั้นไม่ได้")
         sys.exit(1)
 
-    totals = [sum(row["stage_secs"].values()) for row in timed_rows]
+    totals = [row["summary"]["avg_stage_total_sec"] for row in timed_rows]
     avg_total = sum(totals) / len(totals)
     print(f"เวลาประมวลผลฝั่งเซิร์ฟเวอร์เฉลี่ยต่อภาพ (รวมทุกขั้นจาก Server-Timing): {avg_total:.3f} วินาที")
     passed = "ผ่าน" if avg_total < TARGET_SERVER_SEC else "ไม่ผ่าน"
