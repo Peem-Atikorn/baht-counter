@@ -89,39 +89,39 @@
   ],
   "methods": {
     "Proposed (Multi-cue + Watershed)": {
-      "precision": 0.5928853754940712,
-      "recall": 0.6263048016701461,
-      "f1_score": 0.6091370558375634,
-      "mean_radius_error_pct": 8.62,
-      "tp": 300,
-      "fp": 206,
-      "gt": 479
-    },
-    "Baseline A: No Watershed": {
-      "precision": 0.4298642533936652,
-      "recall": 0.19832985386221294,
-      "f1_score": 0.27142857142857146,
-      "mean_radius_error_pct": 11.13,
-      "tp": 95,
-      "fp": 126,
-      "gt": 479
-    },
-    "Baseline B: K-Means": {
-      "precision": 0.4337899543378995,
-      "recall": 0.19832985386221294,
-      "f1_score": 0.2722063037249283,
-      "mean_radius_error_pct": 11.71,
-      "tp": 95,
+      "precision": 0.7142857142857143,
+      "recall": 0.6471816283924844,
+      "f1_score": 0.67907995618839,
+      "mean_radius_error_pct": 8.934808833965393,
+      "tp": 310,
       "fp": 124,
       "gt": 479
     },
+    "Baseline A: No Watershed": {
+      "precision": 0.5633802816901409,
+      "recall": 0.16701461377870563,
+      "f1_score": 0.25764895330112725,
+      "mean_radius_error_pct": 11.939338475235115,
+      "tp": 80,
+      "fp": 62,
+      "gt": 479
+    },
+    "Baseline B: K-Means": {
+      "precision": 0.5367647058823529,
+      "recall": 0.1524008350730689,
+      "f1_score": 0.23739837398373984,
+      "mean_radius_error_pct": 11.597692861205404,
+      "tp": 73,
+      "fp": 63,
+      "gt": 479
+    },
     "Baseline C: Hough Circles": {
-      "precision": 0.25311720698254364,
-      "recall": 0.8475991649269311,
-      "f1_score": 0.38982237157945265,
-      "mean_radius_error_pct": 10.39,
-      "tp": 406,
-      "fp": 1198,
+      "precision": 0.5574636723910171,
+      "recall": 0.8810020876826722,
+      "f1_score": 0.6828478964401294,
+      "mean_radius_error_pct": 10.716985913973211,
+      "tp": 422,
+      "fp": 335,
       "gt": 479
     }
   }

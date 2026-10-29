@@ -4,9 +4,9 @@
 
 | วิธีการ (Method) | Precision | Recall | F1-Score | Mean Radius Error |
 |---|:---:|:---:|:---:|:---:|
-| **Proposed (Multi-cue + Watershed)** | 59.3% | 62.6% | 60.9% | 8.62% |
-| Baseline A: No Watershed | 43.0% | 19.8% | 27.1% | 11.13% |
-| Baseline B: K-Means | 43.4% | 19.8% | 27.2% | 11.71% |
-| Baseline C: Hough Circles | 25.3% | 84.8% | 39.0% | 10.39% |
+| **Proposed (Multi-cue + Watershed)** | 71.4% | 64.7% | 67.9% | 8.93% |
+| Baseline A: No Watershed | 56.3% | 16.7% | 25.8% | 11.94% |
+| Baseline B: K-Means | 53.7% | 15.2% | 23.7% | 11.60% |
+| Baseline C: Hough Circles | 55.7% | 88.1% | 68.3% | 10.72% |
 
-จำนวนที่ใช้คิด (TP / FP / GT): Proposed 300 / 206 / 479 · A 95 / 126 / 479 · B 95 / 124 / 479 · Hough 406 / 1198 / 479
+จำนวนที่ใช้คิด (TP / FP / GT): Proposed 310 / 124 / 479 · A 80 / 62 / 479 · B 73 / 63 / 479 · Hough 422 / 335 / 479
