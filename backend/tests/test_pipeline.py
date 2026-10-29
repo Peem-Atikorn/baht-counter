@@ -13,6 +13,44 @@ def test_pipeline_returns_original_coordinates():
     assert set(timings) == {"preprocess", "detection", "classification"}
 
 
+def test_large_upload_coordinates_in_original_space():
+    """main.decode_image ย่อภาพตอนถอดรหัส (ไม่ส่งภาพเต็มความละเอียดเข้า pipeline, รีวิว PR #39 ข้อ 3)
+    พิกัดที่ได้ต้องเป็นพิกัดภาพต้นฉบับเป๊ะเหมือนเดิม ไม่ว่า pipeline จะได้รับภาพที่ถอดรหัสมาขนาดเท่าไร —
+    ใช้ภาพต้นฉบับเดียวกับ test_pipeline_returns_original_coordinates (4000x3000) แต่ส่ง `image` ที่ย่อมา
+    แล้วครึ่งหนึ่ง (2000x1500) พร้อม original_size เพื่อเทียบว่าพิกัดที่แปลงกลับตรงกันเป๊ะ"""
+    full_result, _, _ = pipeline.run(np.zeros((3000, 4000, 3), np.uint8))
+
+    decoded = np.zeros((1500, 2000, 3), np.uint8)  # main.decode_image ย่อ 4000x3000 มาเหลือ 2000x1500
+    result, _, _ = pipeline.run(decoded, original_size=(4000, 3000))
+
+    assert result.image_size == (4000, 3000)
+    assert [c.center_xy for c in result.coins] == pytest.approx(
+        [c.center_xy for c in full_result.coins],
+    )
+
+
+def test_add_coin_on_downscaled_image_keeps_original_coords():
+    decoded = np.zeros((1500, 2000, 3), np.uint8)
+    coin, is_fake = pipeline.locate_added_coin(decoded, (3500.0, 2500.0), [], original_size=(4000, 3000))
+    assert is_fake is True
+    assert coin.center_xy == pytest.approx((3500.0, 2500.0))
+
+
+def test_reclassify_on_downscaled_image():
+    """แก้ชนิดเหรียญบนภาพที่ถูกย่อตอนถอดรหัสมา (main.decode_image) — พิกัดเหรียญอื่น (ไม่ใช่ anchor) ต้อง
+    ไม่เลื่อนจากที่เคยได้ตอน pipeline.run (รีวิว PR #39 ข้อ 3)"""
+    decoded = np.zeros((1500, 2000, 3), np.uint8)
+    original_size = (4000, 3000)
+    result, _, _ = pipeline.run(decoded, original_size=original_size)
+    before = {c.coin_id: c.center_xy for c in result.coins}
+
+    reclassified = pipeline.reclassify(decoded, result.coins, anchor=(0, "THB_10"), original_size=original_size)
+
+    assert reclassified.image_size == original_size
+    for c in reclassified.coins:
+        assert c.center_xy == pytest.approx(before[c.coin_id])
+
+
 def test_pipeline_failure_is_reported(monkeypatch):
     def not_done(pre):
         raise NotImplementedError("detection ยังไม่เสร็จ")
